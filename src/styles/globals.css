@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.typing-effect {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid rgba(34, 211, 238, 0.9);
+  width: 0;
+  animation: typing 4s steps(58, end) infinite, cursor-blink 0.9s step-end infinite;
+}
+
+@keyframes typing {
+  0% {
+    width: 0;
+  }
+  45% {
+    width: 100%;
+  }
+  70% {
+    width: 100%;
+  }
+  100% {
+    width: 0;
+  }
+}
+
+@keyframes cursor-blink {
+  50% {
+    border-right-color: transparent;
+  }
+}

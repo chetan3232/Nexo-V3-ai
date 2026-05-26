@@ -1,0 +1,10 @@
+{
+  "name": "NEXO V3 IDE",
+  "short_name": "NEXO",
+  "description": "AI-native IDE with agents, memory, deployment, and runtime panels.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#0891b2",
+  "icons": []
+}
