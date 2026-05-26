@@ -6,10 +6,25 @@ import path from 'node:path';
 import { WebSocketServer } from 'ws';
 import { FileMemoryEngine } from './memoryEngine.js';
 
+// Import New Modular Routers & Components
+import authRouter from './routes/auth.js';
+import projectsRouter from './routes/projects.js';
+import filesRouter from './routes/files.js';
+import messagesRouter from './routes/messages.js';
+import deploymentsRouter from './routes/deployments.js';
+import memoriesRouter from './routes/memories.js';
+import agentsRouter from './routes/agents.js';
+import logsRouter from './routes/logs.js';
+
+import { initializeWebSocketGateway } from './websocket/index.js';
+import { streamTokens } from './ai/index.js';
+
 const app = express();
 const server = http.createServer(app);
 const port = Number(process.env.NEXO_API_PORT ?? 8787);
 const workspaceRoot = path.resolve(process.env.NEXO_WORKSPACE_ROOT ?? process.cwd());
+
+// Initialize Legacy Engines for complete backwards compatibility
 const memoryEngine = new FileMemoryEngine(workspaceRoot);
 const deploymentProviders = {
   vercel: { configFile: 'vercel.json', buildCommand: 'npm run build', outputDirectory: 'dist' },
@@ -21,6 +36,7 @@ const deploymentProviders = {
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 
+// Helper functions for filesystem fallback
 function resolveWorkspacePath(inputPath = '.') {
   const resolved = path.resolve(workspaceRoot, inputPath);
   if (resolved !== workspaceRoot && !resolved.startsWith(`${workspaceRoot}${path.sep}`)) {
@@ -36,7 +52,6 @@ function toRelativePath(absolutePath) {
 async function buildTree(relativePath = '.') {
   const absolutePath = resolveWorkspacePath(relativePath);
   const entries = await fs.readdir(absolutePath, { withFileTypes: true });
-
   const visibleEntries = entries.filter((entry) => !['node_modules', 'dist', '.git', '.npm-cache'].includes(entry.name));
 
   return Promise.all(
@@ -60,18 +75,22 @@ async function buildTree(relativePath = '.') {
   );
 }
 
-async function streamSyntheticTokens(text, write) {
-  const chunks = text.match(/.{1,18}/g) ?? [text];
-  for (const chunk of chunks) {
-    write(chunk);
-    await new Promise((resolve) => setTimeout(resolve, 35));
-  }
-}
+// Mount New Modular API Routers
+app.use('/api/auth', authRouter);
+app.use('/api/projects', projectsRouter);
+app.use('/api/files', filesRouter);
+app.use('/api/messages', messagesRouter);
+app.use('/api/deployments', deploymentsRouter);
+app.use('/api/memories', memoriesRouter);
+app.use('/api/agents', agentsRouter);
+app.use('/api/logs', logsRouter);
 
+// Maintain Legacy Health Check
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, workspaceRoot });
+  res.json({ ok: true, workspaceRoot, mode: process.env.NODE_ENV || 'development' });
 });
 
+// Maintain Legacy AI Stream Route
 app.post('/api/ai/stream', async (req, res) => {
   res.writeHead(200, {
     'Cache-Control': 'no-cache',
@@ -80,13 +99,14 @@ app.post('/api/ai/stream', async (req, res) => {
   });
 
   const prompt = String(req.body?.prompt ?? '');
-  await streamSyntheticTokens(prompt, (token) => {
+  for await (const token of streamTokens(prompt)) {
     res.write(`data: ${JSON.stringify({ token })}\n\n`);
-  });
+  }
   res.write('event: done\ndata: {}\n\n');
   res.end();
 });
 
+// Maintain Legacy Memory Upsert Route
 app.post('/api/memory/upsert', async (req, res) => {
   try {
     const entry = await memoryEngine.upsert({
@@ -102,6 +122,7 @@ app.post('/api/memory/upsert', async (req, res) => {
   }
 });
 
+// Maintain Legacy Memory Search Route
 app.post('/api/memory/search', async (req, res) => {
   try {
     const results = await memoryEngine.search(
@@ -115,6 +136,7 @@ app.post('/api/memory/search', async (req, res) => {
   }
 });
 
+// Maintain Legacy Agent Planning Route
 app.post('/api/agent/plan', async (req, res) => {
   const goal = String(req.body?.goal ?? '');
   const memories = await memoryEngine.search(goal, ['project', 'code', 'long', 'conversation'], 5);
@@ -125,6 +147,7 @@ app.post('/api/agent/plan', async (req, res) => {
   });
 });
 
+// Maintain Legacy Deployment Route
 app.post('/api/deploy/plan', (req, res) => {
   const provider = String(req.body?.provider ?? 'vercel');
   const definition = deploymentProviders[provider] ?? deploymentProviders.vercel;
@@ -136,6 +159,7 @@ app.post('/api/deploy/plan', (req, res) => {
   });
 });
 
+// Maintain Legacy File System Tree Route
 app.get('/api/fs/tree', async (_req, res) => {
   try {
     res.json({ tree: await buildTree('.') });
@@ -144,6 +168,7 @@ app.get('/api/fs/tree', async (_req, res) => {
   }
 });
 
+// Maintain Legacy File System Read Route
 app.get('/api/fs/read', async (req, res) => {
   try {
     const filePath = resolveWorkspacePath(String(req.query.path ?? ''));
@@ -154,6 +179,7 @@ app.get('/api/fs/read', async (req, res) => {
   }
 });
 
+// Maintain Legacy File System Write Route
 app.post('/api/fs/write', async (req, res) => {
   try {
     const filePath = resolveWorkspacePath(String(req.body?.path ?? ''));
@@ -164,6 +190,7 @@ app.post('/api/fs/write', async (req, res) => {
   }
 });
 
+// Maintain Legacy File System Rename Route
 app.post('/api/fs/rename', async (req, res) => {
   try {
     const from = resolveWorkspacePath(String(req.body?.from ?? ''));
@@ -175,6 +202,7 @@ app.post('/api/fs/rename', async (req, res) => {
   }
 });
 
+// Maintain Legacy File System Delete Route
 app.post('/api/fs/delete', async (req, res) => {
   try {
     const target = resolveWorkspacePath(String(req.body?.path ?? ''));
@@ -186,18 +214,31 @@ app.post('/api/fs/delete', async (req, res) => {
   }
 });
 
-const wss = new WebSocketServer({ server, path: '/api/ai/ws' });
+// Initialize WebSocket gateway at /api/ws
+initializeWebSocketGateway(server, workspaceRoot);
 
-wss.on('connection', (socket) => {
+// Maintain Legacy websocket at /api/ai/ws
+const wssLegacy = new WebSocketServer({ noServer: true });
+wssLegacy.on('connection', (socket) => {
   socket.on('message', async (raw) => {
     const payload = JSON.parse(String(raw));
-    await streamSyntheticTokens(String(payload.prompt ?? ''), (token) => {
+    for await (const token of streamTokens(String(payload.prompt ?? ''))) {
       socket.send(JSON.stringify({ type: 'token', token }));
-    });
+    }
     socket.send(JSON.stringify({ type: 'done' }));
   });
 });
 
+// Delegate WebSocket connections based on request path
+server.on('upgrade', (request, socket, head) => {
+  const { pathname } = new URL(request.url, `http://${request.headers.host}`);
+  if (pathname === '/api/ai/ws') {
+    wssLegacy.handleUpgrade(request, socket, head, (ws) => {
+      wssLegacy.emit('connection', ws, request);
+    });
+  }
+});
+
 server.listen(port, () => {
-  console.log(`NEXO API server listening on http://localhost:${port}`);
+  console.log(`[Server] NEXO API server booted and listening on http://localhost:${port}`);
 });
