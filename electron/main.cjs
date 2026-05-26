@@ -7,8 +7,14 @@ function createWindow() {
     height: 960,
     minWidth: 1080,
     minHeight: 720,
-    backgroundColor: '#020617',
-    title: 'NEXO V3 IDE',
+    backgroundColor: '#0d1117',
+    title: 'Nexo AI IDE',
+    titleBarStyle: 'hidden',
+    titleBarOverlay: {
+      color: '#111827',
+      symbolColor: '#8b9ab2',
+      height: 35,
+    },
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -23,9 +29,12 @@ function createWindow() {
   });
 
   if (process.env.ELECTRON_DEV_SERVER_URL) {
-    window.loadURL(process.env.ELECTRON_DEV_SERVER_URL);
+    window.loadURL(process.env.ELECTRON_DEV_SERVER_URL + '#/ide');
+    window.webContents.openDevTools({ mode: 'detach' });
   } else {
-    window.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+    window.loadFile(path.join(__dirname, '..', 'dist', 'index.html'), {
+      hash: '/ide',
+    });
   }
 }
 

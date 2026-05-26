@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Group, Panel, Separator } from 'react-resizable-panels';
-import { Binary, ChevronDown, ChevronUp, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { ActivityBar } from './components/ActivityBar';
 import { Sidebar } from './components/Sidebar';
 import { EditorTabs } from './components/EditorTabs';
@@ -8,19 +8,16 @@ import { CodeEditor } from './CodeEditor';
 import { BottomPanel } from './components/BottomPanel';
 import { StatusBar } from './components/StatusBar';
 import { CommandPalette } from './components/CommandPalette';
+import { AIAssistantPanel } from './components/AIAssistantPanel';
+import { TitleBar } from './components/TitleBar';
 import { useIdeLayoutStore } from '@/store/useIdeLayoutStore';
-import { NetflixPreview } from './components/NetflixPreview';
 
 export function IdeWorkspace() {
   const [activeIcon, setActiveIcon] = useState(0);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [showVisualCanvas, setShowVisualCanvas] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(true);
 
   const {
-    leftPanelSizes,
-    setLeftPanelSizes,
-    mainPanelSizes,
-    setMainPanelSizes,
     sidebarCollapsed,
     setSidebarCollapsed,
     bottomPanelCollapsed,
@@ -28,132 +25,165 @@ export function IdeWorkspace() {
   } = useIdeLayoutStore();
 
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setPaletteOpen((value) => !value);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setAiPanelOpen((v) => !v);
       }
     };
-
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   return (
-    <div className="relative flex h-screen flex-col overflow-hidden bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_45%),radial-gradient(circle_at_90%_20%,rgba(20,184,166,0.16),transparent_38%),#020617] text-slate-100 font-sans">
-      <div className="pointer-events-none absolute -left-28 top-24 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-8 right-10 h-52 w-52 rounded-full bg-fuchsia-400/20 blur-3xl" />
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        overflow: 'hidden',
+        background: 'var(--bg-base)',
+        color: 'var(--text-primary)',
+        fontFamily: 'var(--font-ui)',
+      }}
+    >
+      {/* ── Title bar (Electron-style) ── */}
+      <TitleBar
+        onTogglePalette={() => setPaletteOpen(true)}
+        onToggleAI={() => setAiPanelOpen((v) => !v)}
+        aiPanelOpen={aiPanelOpen}
+      />
 
-      <header className="flex h-11 items-center justify-between border-b border-cyan-300/20 bg-slate-950/60 px-3 backdrop-blur-xl shrink-0">
-        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-cyan-200">
-          <Binary className="h-4 w-4" /> NEXO V3 IDE
-        </div>
-        <button
-          onClick={() => setPaletteOpen(true)}
-          className="rounded-md border border-cyan-300/30 bg-cyan-400/10 px-2 py-1 text-xs text-cyan-100 hover:bg-cyan-300/20"
+      {/* ── Main workspace body ── */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Activity Bar — leftmost strip */}
+        <ActivityBar
+          activeIndex={activeIcon}
+          onSelect={(idx) => {
+            setActiveIcon(idx);
+            if (sidebarCollapsed) setSidebarCollapsed(false);
+          }}
+        />
+
+        {/* Horizontal group: Sidebar | Editor+Bottom | AI Panel */}
+        <Group
+          orientation="horizontal"
+          style={{ flex: 1, minWidth: 0, height: '100%' }}
         >
-          Command Palette (Ctrl/Cmd + K)
-        </button>
-      </header>
+          {/* ── Sidebar ── */}
+          {!sidebarCollapsed && (
+            <>
+              <Panel id="sidebar" defaultSize={18} minSize={12} maxSize={32}>
+                <AnimatePresence>
+                  <motion.div
+                    key="sidebar"
+                    initial={{ opacity: 0, x: -6 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -6 }}
+                    transition={{ duration: 0.15 }}
+                    style={{ height: '100%' }}
+                  >
+                    <Sidebar
+                      collapsed={false}
+                      activeTab={activeIcon}
+                      onToggleCanvas={() => {}}
+                      isCanvasOpen={false}
+                    />
+                  </motion.div>
+                </AnimatePresence>
+              </Panel>
+              <Separator
+                style={{
+                  width: '1px',
+                  background: 'var(--border)',
+                  cursor: 'col-resize',
+                  flexShrink: 0,
+                }}
+              />
+            </>
+          )}
 
-      <div className="flex-1 min-h-0 relative">
-        <Group orientation="vertical" onLayoutChange={(layout) => setMainPanelSizes(Object.values(layout))}>
-          <Panel defaultSize={mainPanelSizes[0] ?? 72} minSize={45}>
-            <Group orientation="horizontal" onLayoutChange={(layout) => setLeftPanelSizes(Object.values(layout))}>
-              <Panel defaultSize={leftPanelSizes[0] ?? 8} minSize={6} maxSize={10}>
-                <ActivityBar activeIndex={activeIcon} onSelect={(idx) => {
-                  setActiveIcon(idx);
-                  if (sidebarCollapsed) {
-                    setSidebarCollapsed(false);
-                  }
-                }} />
-              </Panel>
-              <Separator className="w-px bg-cyan-300/20 hover:bg-cyan-300/50 animate-pulse" />
-              <Panel
-                collapsible
-                collapsedSize={0}
-                onCollapse={() => setSidebarCollapsed(true)}
-                onExpand={() => setSidebarCollapsed(false)}
-                defaultSize={leftPanelSizes[1] ?? 20}
-                minSize={14}
-                maxSize={32}
-              >
-                <Sidebar 
-                  collapsed={sidebarCollapsed} 
-                  activeTab={activeIcon}
-                  onToggleCanvas={() => setShowVisualCanvas(prev => !prev)}
-                  isCanvasOpen={showVisualCanvas}
-                />
-              </Panel>
-              <Separator className="w-px bg-cyan-300/20 hover:bg-cyan-300/50" />
-              <Panel defaultSize={leftPanelSizes[2] ?? 72} minSize={38}>
-                <div className="flex h-full flex-col rounded-tl-2xl border-l border-cyan-300/15 bg-slate-900/45 backdrop-blur-xl">
-                  <div className="flex items-center justify-between border-b border-cyan-300/15 bg-slate-950/35 pr-2">
-                    <EditorTabs />
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setShowVisualCanvas(prev => !prev)}
-                        className={`rounded px-2.5 py-1 text-xs font-semibold border transition ${
-                          showVisualCanvas 
-                            ? 'bg-fuchsia-500/20 border-fuchsia-400 text-fuchsia-200' 
-                            : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-                        }`}
-                        title="Split-Screen Visual Canvas Sandbox"
-                      >
-                        {showVisualCanvas ? 'Close Split Canvas' : 'Split Visual Canvas'}
-                      </button>
-                      <button
-                        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                        className="rounded p-1.5 text-slate-300 hover:bg-slate-800/70 hover:text-cyan-200"
-                        aria-label="toggle-sidebar"
-                      >
-                        {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {showVisualCanvas ? (
-                    <div className="flex-1 grid grid-cols-2 min-h-0 overflow-hidden divide-x divide-cyan-400/20">
-                      <div className="min-h-0 overflow-hidden">
-                        <CodeEditor />
-                      </div>
-                      <div className="min-h-0 overflow-hidden">
-                        <NetflixPreview />
-                      </div>
-                    </div>
-                  ) : (
+          {/* ── Editor + Bottom Panel ── */}
+          <Panel id="editor-main" defaultSize={aiPanelOpen ? 58 : 82} minSize={30}>
+            {/* Vertical group: Editor | Terminal */}
+            <Group orientation="vertical" style={{ height: '100%' }}>
+              {/* Editor area */}
+              <Panel id="editor-area" defaultSize={72} minSize={25}>
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <EditorTabs onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
+                  <div style={{ flex: 1, minHeight: 0 }}>
                     <CodeEditor />
-                  )}
+                  </div>
                 </div>
+              </Panel>
+
+              <Separator
+                style={{
+                  height: '1px',
+                  background: 'var(--border)',
+                  cursor: 'row-resize',
+                  flexShrink: 0,
+                }}
+              />
+
+              {/* Bottom panel */}
+              <Panel
+                id="bottom-panel"
+                defaultSize={28}
+                minSize={8}
+                maxSize={55}
+                collapsible
+                collapsedSize={6}
+                onResize={(panelSize) => {
+                  const pct = typeof panelSize === 'number'
+                    ? panelSize
+                    : panelSize.asPercentage;
+                  setBottomPanelCollapsed(pct <= 7);
+                }}
+              >
+                <BottomPanel
+                  collapsed={bottomPanelCollapsed}
+                  onToggle={() => setBottomPanelCollapsed(!bottomPanelCollapsed)}
+                />
               </Panel>
             </Group>
           </Panel>
 
-          <Separator className="h-px bg-cyan-300/20 hover:bg-cyan-300/50" />
-          <Panel
-            collapsible
-            collapsedSize={6}
-            onCollapse={() => setBottomPanelCollapsed(true)}
-            onExpand={() => setBottomPanelCollapsed(false)}
-            defaultSize={mainPanelSizes[1] ?? 28}
-            minSize={12}
-            maxSize={45}
-          >
-            <div className="relative h-full border-t border-cyan-300/20">
-              <button
-                onClick={() => setBottomPanelCollapsed(!bottomPanelCollapsed)}
-                className="absolute right-3 top-2 z-20 rounded bg-slate-900/80 p-1 text-cyan-200 hover:bg-slate-800"
-                aria-label="toggle-bottom-panel"
-              >
-                {bottomPanelCollapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-              <BottomPanel />
-            </div>
-          </Panel>
+          {/* ── AI Assistant Panel ── */}
+          {aiPanelOpen && (
+            <>
+              <Separator
+                style={{
+                  width: '1px',
+                  background: 'var(--border)',
+                  cursor: 'col-resize',
+                  flexShrink: 0,
+                }}
+              />
+              <Panel id="ai-panel" defaultSize={22} minSize={16} maxSize={40}>
+                <motion.div
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  transition={{ duration: 0.15 }}
+                  style={{ height: '100%' }}
+                >
+                  <AIAssistantPanel onClose={() => setAiPanelOpen(false)} />
+                </motion.div>
+              </Panel>
+            </>
+          )}
         </Group>
       </div>
 
-      <StatusBar />
+      {/* ── Status bar ── */}
+      <StatusBar aiPanelOpen={aiPanelOpen} sidebarOpen={!sidebarCollapsed} />
+
+      {/* ── Command palette overlay ── */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );

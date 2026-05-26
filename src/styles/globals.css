@@ -1,44 +1,430 @@
 @import "tailwindcss";
 
+/* ──────────────────────────────────────────────
+   NEXO IDE – Design System
+   Theme: VS Code + Cursor + Windsurf inspired
+   Minimal. Dark. Professional.
+────────────────────────────────────────────── */
+
 :root {
-  color-scheme: light;
+  color-scheme: dark;
+
+  /* Core palette */
+  --bg-base:       #0d1117;
+  --bg-sidebar:    #111827;
+  --bg-panel:      #0d1117;
+  --bg-header:     #0d1117;
+  --bg-input:      #1a2233;
+  --bg-hover:      #1f2d40;
+  --bg-active:     #1d2b3a;
+  --bg-selected:   #1e3a5f;
+
+  /* Borders */
+  --border:        #1f2937;
+  --border-light:  #263346;
+  --border-focus:  #3b82f6;
+
+  /* Accent */
+  --accent:        #3b82f6;
+  --accent-dim:    rgba(59, 130, 246, 0.15);
+  --accent-glow:   rgba(59, 130, 246, 0.08);
+
+  /* Text */
+  --text-primary:  #e2e8f0;
+  --text-secondary:#8b9ab2;
+  --text-muted:    #4b5e78;
+  --text-accent:   #3b82f6;
+
+  /* Status colors */
+  --green:   #22c55e;
+  --amber:   #f59e0b;
+  --red:     #ef4444;
+  --purple:  #a78bfa;
+
+  /* Fonts */
+  --font-ui:   'Inter', system-ui, sans-serif;
+  --font-code: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Sizes */
+  --activity-bar-w: 48px;
+  --sidebar-w:      240px;
+  --tab-h:          35px;
+  --status-bar-h:   22px;
+  --header-h:       35px;
+}
+
+/* ── Reset ─────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 body {
-  margin: 0;
-  min-height: 100vh;
-  font-family: 'Inter', sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-#root {
-  min-height: 100vh;
+/* ── Scrollbars ────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: #374151; }
+
+/* ── Selection ─────────────────────────────── */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: #fff;
 }
 
-.typing-effect {
-  overflow: hidden;
+/* ── Focus visible ─────────────────────────── */
+:focus-visible {
+  outline: 1.5px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ── Monospace elements ─────────────────────── */
+code, pre, kbd, .font-mono {
+  font-family: var(--font-code);
+}
+
+/* ── Smooth transitions for panels ─────────── */
+.panel-transition {
+  transition: width 180ms ease, opacity 180ms ease;
+}
+
+/* ── Activity bar indicator ─────────────────── */
+@keyframes indicator-in {
+  from { transform: scaleY(0); opacity: 0; }
+  to   { transform: scaleY(1); opacity: 1; }
+}
+
+.activity-indicator {
+  animation: indicator-in 150ms ease forwards;
+  transform-origin: center;
+}
+
+/* ── Tab active underline ───────────────────── */
+@keyframes tab-slide-in {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.tab-active-line {
+  animation: tab-slide-in 150ms ease forwards;
+  transform-origin: left;
+}
+
+/* ── Typing animation for terminal ─────────── */
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+.blink { animation: blink-cursor 1s step-end infinite; }
+
+/* ── Skeleton shimmer ───────────────────────── */
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-sidebar) 25%,
+    var(--border) 50%,
+    var(--bg-sidebar) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ── Fade in ───────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in { animation: fade-in 200ms ease forwards; }
+
+/* ── Resizable panel overrides ─────────────── */
+[data-panel-group] { display: flex; height: 100%; }
+[data-panel-group-direction="vertical"] { flex-direction: column; }
+[data-panel-resize-handle-enabled] { position: relative; }
+
+/* ── Resize handle ─────────────────────────── */
+.resize-handle {
+  background: var(--border);
+  transition: background 150ms ease;
+  flex-shrink: 0;
+}
+.resize-handle:hover,
+.resize-handle[data-resize-handle-active] {
+  background: var(--accent);
+}
+
+/* ── Prose in chat ─────────────────────────── */
+.prose-ide {
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.prose-ide p { margin: 0 0 8px; }
+.prose-ide code {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+  font-family: var(--font-code);
+  color: #93c5fd;
+}
+.prose-ide pre {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.prose-ide pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #d1d5db;
+}
+.prose-ide h1, .prose-ide h2, .prose-ide h3 {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+/* ── Window chrome (Electron title bar sim) ─── */
+.titlebar-drag { -webkit-app-region: drag; }
+.titlebar-no-drag { -webkit-app-region: no-drag; }
+
+/* ── Dirty dot indicator ─────────────────────── */
+.dirty-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+/* ── AI streaming pulse ─────────────────────── */
+@keyframes ai-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 1; }
+}
+.ai-pulse { animation: ai-pulse 1.2s ease-in-out infinite; }
+
+/* ── Sidebar section header ─────────────────── */
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+/* ── Icon button ────────────────────────────── */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+.icon-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* ── Tab strip ─────────────────────────────── */
+.tab-strip {
+  display: flex;
+  align-items: stretch;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  height: var(--tab-h);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.tab-strip::-webkit-scrollbar { display: none; }
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  background: var(--bg-sidebar);
   white-space: nowrap;
-  border-right: 2px solid rgba(34, 211, 238, 0.9);
-  width: 0;
-  animation: typing 4s steps(58, end) infinite, cursor-blink 0.9s step-end infinite;
+  position: relative;
+  transition: color 120ms ease, background 120ms ease;
+  min-width: 0;
+  max-width: 200px;
+}
+.tab-item:hover {
+  color: var(--text-primary);
+  background: var(--bg-base);
+}
+.tab-item.active {
+  color: var(--text-primary);
+  background: var(--bg-base);
+}
+.tab-item.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--accent);
+}
+.tab-item .tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-@keyframes typing {
-  0% {
-    width: 0;
-  }
-  45% {
-    width: 100%;
-  }
-  70% {
-    width: 100%;
-  }
-  100% {
-    width: 0;
-  }
+/* ── Status bar ─────────────────────────────── */
+.status-bar {
+  height: var(--status-bar-h);
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 16px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.9);
+  flex-shrink: 0;
+}
+.status-bar .status-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: default;
+  opacity: 0.85;
+  transition: opacity 120ms;
+}
+.status-bar .status-item:hover { opacity: 1; }
+
+/* ── Bottom panel tabs ──────────────────────── */
+.panel-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 12px;
+  height: 35px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 120ms ease, border-color 120ms ease;
+  white-space: nowrap;
+}
+.panel-tab:hover { color: var(--text-secondary); }
+.panel-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
 }
 
-@keyframes cursor-blink {
-  50% {
-    border-right-color: transparent;
-  }
+/* ── Right AI panel ─────────────────────────── */
+.ai-panel {
+  background: var(--bg-sidebar);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
+
+/* ── Input field ────────────────────────────── */
+.ide-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+.ide-input:focus { border-color: var(--border-focus); }
+.ide-input::placeholder { color: var(--text-muted); }
+
+/* ── Button primary ─────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 120ms ease, transform 80ms ease;
+}
+.btn-primary:hover { opacity: 0.88; }
+.btn-primary:active { transform: scale(0.97); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Explorer tree row ──────────────────────── */
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  transition: color 100ms, background 100ms;
+  user-select: none;
+}
+.tree-row:hover { color: var(--text-primary); background: var(--bg-hover); }
+.tree-row.selected { color: var(--text-primary); background: var(--bg-selected); }
+
+/* ── Bradcrumb ─────────────────────────────── */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.breadcrumb-sep { color: var(--text-muted); }
+.breadcrumb-item { color: var(--text-secondary); }
+.breadcrumb-item:last-child { color: var(--text-primary); }

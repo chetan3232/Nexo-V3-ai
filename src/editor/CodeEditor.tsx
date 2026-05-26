@@ -1,126 +1,266 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import Editor, { Monaco } from '@monaco-editor/react';
-import { Bot, Save, Sparkles, SplitSquareHorizontal, WandSparkles } from 'lucide-react';
+import { Save, SplitSquareHorizontal, FileCode2 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
-import { generateInlineSuggestion, InlineIntent } from '@/ai/inlineAssist';
 
-function defineTheme(monaco: Monaco) {
-  monaco.editor.defineTheme('nexo-neon', {
+// Define the clean dark theme matching our design system
+function defineNexoTheme(monaco: Monaco) {
+  monaco.editor.defineTheme('nexo-clean', {
     base: 'vs-dark',
     inherit: true,
     rules: [
-      { token: 'comment', foreground: '64748b' },
-      { token: 'keyword', foreground: '22d3ee' },
-      { token: 'string', foreground: '34d399' },
+      { token: '',               foreground: 'c9d1d9' },
+      { token: 'comment',        foreground: '4b5e78', fontStyle: 'italic' },
+      { token: 'keyword',        foreground: '79c0ff' },
+      { token: 'string',         foreground: 'a5d6ff' },
+      { token: 'number',         foreground: 'f0883e' },
+      { token: 'type',           foreground: 'ffa657' },
+      { token: 'class',          foreground: 'ffa657' },
+      { token: 'function',       foreground: 'd2a8ff' },
+      { token: 'variable',       foreground: 'c9d1d9' },
+      { token: 'parameter',      foreground: 'c9d1d9' },
+      { token: 'operator',       foreground: '79c0ff' },
+      { token: 'tag',            foreground: '7ee787' },
+      { token: 'attribute.name', foreground: '79c0ff' },
+      { token: 'attribute.value',foreground: 'a5d6ff' },
     ],
     colors: {
-      'editor.background': '#020617',
-      'editorLineNumber.foreground': '#334155',
-      'editorLineNumber.activeForeground': '#67e8f9',
-      'editorCursor.foreground': '#22d3ee',
+      'editor.background':              '#0d1117',
+      'editor.foreground':              '#c9d1d9',
+      'editor.lineHighlightBackground': '#161b22',
+      'editor.selectionBackground':     '#264f78',
+      'editor.inactiveSelectionBackground': '#1f2937',
+      'editorLineNumber.foreground':    '#3d4a5c',
+      'editorLineNumber.activeForeground': '#8b9ab2',
+      'editorCursor.foreground':        '#3b82f6',
+      'editorWhitespace.foreground':    '#1f2937',
+      'editorIndentGuide.background':   '#1f2937',
+      'editorIndentGuide.activeBackground': '#263346',
+      'editorGutter.background':        '#0d1117',
+      'editorWidget.background':        '#111827',
+      'editorWidget.border':            '#1f2937',
+      'editorSuggestWidget.background': '#111827',
+      'editorSuggestWidget.border':     '#1f2937',
+      'editorSuggestWidget.selectedBackground': '#1e3a5f',
+      'editorHoverWidget.background':   '#111827',
+      'editorHoverWidget.border':       '#1f2937',
+      'input.background':               '#1a2233',
+      'input.border':                   '#1f2937',
+      'scrollbarSlider.background':     '#263346',
+      'scrollbarSlider.hoverBackground':'#374151',
+      'scrollbarSlider.activeBackground':'#3b82f6',
+      'minimap.background':             '#0d1117',
+      'breadcrumb.background':          '#0d1117',
+      'breadcrumb.foreground':          '#4b5e78',
+      'breadcrumb.activeSelectionForeground': '#8b9ab2',
+      'statusBar.background':           '#3b82f6',
+      'statusBar.foreground':           '#ffffff',
+      'tab.activeBackground':           '#0d1117',
+      'tab.inactiveBackground':         '#111827',
+      'tab.border':                     '#1f2937',
+      'tab.activeBorderTop':            '#3b82f6',
     },
   });
 }
 
-function InlineActions({ onApply, onExplain }: { onApply: (intent: InlineIntent) => void; onExplain: () => void }) {
+function getFileIcon(path: string) {
+  const ext = path.split('.').pop() ?? '';
+  const colors: Record<string, string> = {
+    tsx: '#61dafb', ts: '#3178c6', jsx: '#f7df1e', js: '#f7df1e',
+    css: '#264de4', json: '#fbc02d', md: '#a78bfa', py: '#3572A5',
+  };
+  return colors[ext] ?? '#8b9ab2';
+}
+
+function EmptyState() {
   return (
-    <div className="flex items-center gap-2 border-b border-cyan-400/20 bg-slate-950/70 px-3 py-2 text-xs">
-      <button onClick={() => onApply('ghostText')} className="rounded border border-cyan-300/25 px-2 py-1 text-cyan-200 hover:bg-cyan-500/10">Ghost Text</button>
-      <button onClick={() => onApply('autocomplete')} className="rounded border border-cyan-300/25 px-2 py-1 text-cyan-200 hover:bg-cyan-500/10">Autocomplete</button>
-      <button onClick={() => onApply('fix')} className="rounded border border-cyan-300/25 px-2 py-1 text-cyan-200 hover:bg-cyan-500/10">Inline Fix</button>
-      <button onClick={() => onApply('rewrite')} className="rounded border border-cyan-300/25 px-2 py-1 text-cyan-200 hover:bg-cyan-500/10">Rewrite</button>
-      <button onClick={onExplain} className="ml-auto flex items-center gap-1 rounded border border-emerald-300/30 px-2 py-1 text-emerald-200 hover:bg-emerald-500/10">
-        <Bot className="h-3.5 w-3.5" /> Explain Selection
-      </button>
+    <div
+      style={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0d1117',
+        gap: '12px',
+      }}
+    >
+      <div
+        style={{
+          width: '52px',
+          height: '52px',
+          borderRadius: '12px',
+          background: '#111827',
+          border: '1px solid #1f2937',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <FileCode2 size={24} color="#3b5e78" />
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: '13px', color: '#4b5e78', marginBottom: '4px' }}>
+          No file open
+        </div>
+        <div style={{ fontSize: '12px', color: '#263346' }}>
+          Select a file from the Explorer
+        </div>
+      </div>
     </div>
   );
 }
 
 export function CodeEditor() {
-  const [explainText, setExplainText] = useState('');
   const { files, activeFile, splitFile, updateFileContent, saveFile, isDirty, toggleSplitFile } = useEditorStore();
+  const editorRef = useRef<Parameters<NonNullable<Parameters<typeof Editor>[0]['onMount']>>[0] | null>(null);
 
   const active = activeFile ? files[activeFile] : null;
-  const split = splitFile ? files[splitFile] : null;
+  const split  = splitFile  ? files[splitFile]  : null;
 
   const editorOptions = useMemo(
     () => ({
-      minimap: { enabled: true },
-      fontSize: 13,
-      smoothScrolling: true,
-      cursorBlinking: 'phase' as const,
-      automaticLayout: true,
+      minimap:                { enabled: true, scale: 1 },
+      fontSize:               13.5,
+      fontFamily:             "'JetBrains Mono', 'Fira Code', monospace",
+      fontLigatures:          true,
+      lineHeight:             22,
+      smoothScrolling:        true,
+      cursorBlinking:         'phase' as const,
+      cursorSmoothCaretAnimation: 'on' as const,
+      automaticLayout:        true,
       suggestOnTriggerCharacters: true,
-      quickSuggestions: true,
-      inlineSuggest: { enabled: true },
-      wordWrap: 'on' as const,
+      quickSuggestions:       true,
+      inlineSuggest:          { enabled: true },
+      wordWrap:               'off' as const,
+      scrollBeyondLastLine:   false,
+      renderLineHighlight:    'line' as const,
+      padding:                { top: 12, bottom: 12 },
+      lineNumbers:            'on' as const,
+      glyphMargin:            false,
+      folding:                true,
+      renderWhitespace:       'none' as const,
+      bracketPairColorization: { enabled: true },
+      guides:                 { indentation: true },
+      scrollbar: {
+        vertical:             'auto' as const,
+        horizontal:           'auto' as const,
+        verticalScrollbarSize: 6,
+        horizontalScrollbarSize: 6,
+      },
     }),
     []
   );
 
-  if (!active) {
-    return <div className="flex h-full items-center justify-center text-slate-400">Open a file from explorer.</div>;
-  }
+  if (!active) return <EmptyState />;
 
-  const applyInline = (intent: InlineIntent) => {
-    const source = active.content;
-    const suggestion = generateInlineSuggestion(intent, source);
-    const next = intent === 'fix' || intent === 'rewrite' ? suggestion : `${source}${suggestion}`;
-    updateFileContent(active.path, next);
-    setExplainText('');
-  };
-
-  const explainSelection = () => {
-    setExplainText(generateInlineSuggestion('explain', active.content));
-  };
+  const langColor = getFileIcon(active.path);
+  const fileName  = active.path.split('/').pop() ?? active.path;
+  const dirPath   = active.path.split('/').slice(0, -1).join(' › ');
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-cyan-400/15 bg-slate-900/50 px-3 py-2 text-xs text-slate-300">
-        <div className="flex items-center gap-3">
-          <span className="font-medium text-cyan-200">{active.path}</span>
-          {isDirty(active.path) && <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-200">DIRTY</span>}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0d1117' }}>
+      {/* ── Breadcrumb bar ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 12px',
+          height: '30px',
+          background: '#0d1117',
+          borderBottom: '1px solid #1f2937',
+          flexShrink: 0,
+        }}
+      >
+        <div className="breadcrumb">
+          <span className="breadcrumb-item" style={{ opacity: 0.6 }}>{dirPath}</span>
+          {dirPath && <span className="breadcrumb-sep">›</span>}
+          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span
+              style={{
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
+                background: langColor,
+                display: 'inline-block',
+                flexShrink: 0,
+              }}
+            />
+            <span className="breadcrumb-item">{fileName}</span>
+          </span>
+          {isDirty(active.path) && (
+            <span
+              style={{
+                marginLeft: '4px',
+                fontSize: '10px',
+                background: 'rgba(245,158,11,0.15)',
+                color: '#f59e0b',
+                border: '1px solid rgba(245,158,11,0.3)',
+                borderRadius: '3px',
+                padding: '0 5px',
+                lineHeight: '16px',
+              }}
+            >
+              modified
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={toggleSplitFile} className="flex items-center gap-1 rounded border border-cyan-300/25 px-2 py-1 text-cyan-200 hover:bg-cyan-500/10">
-            <SplitSquareHorizontal className="h-3.5 w-3.5" /> Split
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          <button
+            onClick={toggleSplitFile}
+            className="icon-btn"
+            title="Split editor"
+          >
+            <SplitSquareHorizontal size={14} />
           </button>
-          <button onClick={() => saveFile(active.path)} className="flex items-center gap-1 rounded border border-emerald-300/25 px-2 py-1 text-emerald-200 hover:bg-emerald-500/10">
-            <Save className="h-3.5 w-3.5" /> Save
+          <button
+            onClick={() => saveFile(active.path)}
+            className="icon-btn"
+            title="Save (Ctrl+S)"
+            style={{ color: isDirty(active.path) ? 'var(--accent)' : undefined }}
+          >
+            <Save size={14} />
           </button>
         </div>
       </div>
 
-      <InlineActions onApply={applyInline} onExplain={explainSelection} />
-
-      <div className={`grid flex-1 ${split ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      {/* ── Editor(s) ── */}
+      <div
+        style={{
+          flex: 1,
+          display: 'grid',
+          gridTemplateColumns: split ? '1fr 1fr' : '1fr',
+          minHeight: 0,
+        }}
+      >
         <Editor
           height="100%"
           language={active.language}
           value={active.content}
-          beforeMount={defineTheme}
-          theme="nexo-neon"
+          beforeMount={defineNexoTheme}
+          theme="nexo-clean"
           options={editorOptions}
+          onMount={(editor) => { editorRef.current = editor; }}
           onChange={(value) => updateFileContent(active.path, value ?? '')}
         />
 
         {split && (
-          <Editor
-            height="100%"
-            language={split.language}
-            value={split.content}
-            beforeMount={defineTheme}
-            theme="nexo-neon"
-            options={editorOptions}
-            onChange={(value) => updateFileContent(split.path, value ?? '')}
-          />
+          <>
+            <div style={{ borderLeft: '1px solid #1f2937' }}>
+              <Editor
+                height="100%"
+                language={split.language}
+                value={split.content}
+                beforeMount={defineNexoTheme}
+                theme="nexo-clean"
+                options={{ ...editorOptions, minimap: { enabled: false } }}
+                onChange={(value) => updateFileContent(split.path, value ?? '')}
+              />
+            </div>
+          </>
         )}
-      </div>
-
-      <div className="flex min-h-10 items-center gap-2 border-t border-cyan-400/15 bg-slate-950/70 px-3 text-xs text-slate-300">
-        <WandSparkles className="h-3.5 w-3.5 text-cyan-300" />
-        <span>{explainText || 'AI inline mode ready: ghost text, autocomplete, fixes, rewrites, and explain selection.'}</span>
-        <Sparkles className="ml-auto h-3.5 w-3.5 animate-pulse text-fuchsia-300" />
       </div>
     </div>
   );

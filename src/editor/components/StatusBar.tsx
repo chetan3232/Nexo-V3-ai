@@ -1,15 +1,85 @@
-import { Cpu, GitBranch, Wifi } from 'lucide-react';
+import { GitBranch, Wifi, Cpu, AlertTriangle, Info, CheckCircle2, Zap } from 'lucide-react';
+import { useEditorStore } from '@/store/useEditorStore';
 
-export function StatusBar() {
+type Props = {
+  aiPanelOpen?: boolean;
+  sidebarOpen?: boolean;
+};
+
+export function StatusBar({ aiPanelOpen, sidebarOpen }: Props) {
+  const { activeFile, files } = useEditorStore();
+  const activeFileData = activeFile ? files[activeFile] : null;
+
+  const getLanguageLabel = (lang?: string) => {
+    const map: Record<string, string> = {
+      typescript: 'TypeScript',
+      javascript: 'JavaScript',
+      tsx: 'TypeScript React',
+      jsx: 'JavaScript React',
+      css: 'CSS',
+      json: 'JSON',
+      markdown: 'Markdown',
+      python: 'Python',
+      plaintext: 'Plain Text',
+    };
+    return lang ? (map[lang] ?? lang) : 'Plain Text';
+  };
+
   return (
-    <footer className="flex h-8 items-center justify-between border-t border-cyan-400/20 bg-slate-950 px-3 text-[11px] text-slate-300">
-      <div className="flex items-center gap-4">
-        <span className="flex items-center gap-1"><GitBranch className="h-3.5 w-3.5" /> codex/nexo-v3</span>
-        <span>TypeScript React</span>
+    <footer className="status-bar">
+      {/* Left side */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1 }}>
+        <div className="status-item" style={{ gap: '5px', fontWeight: 600 }}>
+          <GitBranch size={12} />
+          <span>main</span>
+        </div>
+
+        <div className="status-item">
+          <AlertTriangle size={11} />
+          <span>1</span>
+          <CheckCircle2 size={11} />
+          <span>0</span>
+        </div>
+
+        <div className="status-item">
+          <Zap size={11} />
+          <span>AI Ready</span>
+        </div>
       </div>
-      <div className="flex items-center gap-4">
-        <span className="flex items-center gap-1"><Cpu className="h-3.5 w-3.5 text-cyan-300" /> AI Assist: ON</span>
-        <span className="flex items-center gap-1"><Wifi className="h-3.5 w-3.5 text-emerald-300" /> Runtime Ready</span>
+
+      {/* Center - file info */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        {activeFileData && (
+          <>
+            <div className="status-item">
+              <span>{getLanguageLabel(activeFileData.language)}</span>
+            </div>
+            <div className="status-item">
+              <span>UTF-8</span>
+            </div>
+            <div className="status-item">
+              <span>LF</span>
+            </div>
+            <div className="status-item">
+              <span>Ln 1, Col 1</span>
+            </div>
+            <div className="status-item">
+              <span>Spaces: 2</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Right side */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, justifyContent: 'flex-end' }}>
+        <div className="status-item">
+          <Cpu size={11} />
+          <span>Nexo AI</span>
+        </div>
+        <div className="status-item">
+          <Wifi size={11} />
+          <span>Connected</span>
+        </div>
       </div>
     </footer>
   );
