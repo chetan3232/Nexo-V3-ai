@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TerminalSquare, AlertTriangle, AlignLeft, Bug,
-  ChevronUp, ChevronDown, Plus, Trash2, SplitSquare,
+  ChevronUp, ChevronDown, Plus, Trash2, Columns2,
 } from 'lucide-react';
 import { AIChatPanel } from './AIChatPanel';
 
@@ -122,7 +122,7 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
 
           {[
             { icon: Plus,        title: 'New Terminal' },
-            { icon: SplitSquare, title: 'Split Terminal' },
+            { icon: Columns2,    title: 'Split Terminal' },
             { icon: Trash2,      title: 'Kill Terminal' },
           ].map(({ icon: Icon, title }) => (
             <button key={title} title={title} style={{
