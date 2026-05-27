@@ -28,8 +28,8 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
         flexShrink: 0,
         userSelect: 'none',
         // Allow Electron drag on the title bar
-        WebkitAppRegion: 'drag' as any,
-      }}
+        WebkitAppRegion: 'drag',
+      } as any}
     >
       {/* ── macOS: traffic lights on left ── */}
       {isMac && (
@@ -40,8 +40,8 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
           paddingLeft: '14px',
           paddingRight: '10px',
           flexShrink: 0,
-          WebkitAppRegion: 'no-drag' as any,
-        }}>
+          WebkitAppRegion: 'no-drag',
+        } as any}>
           {[
             { color: '#ff5f57', title: 'Close' },
             { color: '#febc2e', title: 'Minimize' },
@@ -61,8 +61,8 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
         alignItems: 'center',
         flexShrink: 0,
         paddingLeft: isMac ? '0' : '8px',
-        WebkitAppRegion: 'no-drag' as any,
-      }}>
+        WebkitAppRegion: 'no-drag',
+      } as any}>
         {!isMac && (
           <>
             <button onClick={onTogglePalette} style={menuBtnStyle} title="Back">
@@ -99,8 +99,8 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
         flex: 1,
         display: 'flex',
         justifyContent: 'center',
-        WebkitAppRegion: 'no-drag' as any,
-      }}>
+        WebkitAppRegion: 'no-drag',
+      } as any}>
         <button
           id="command-palette-trigger"
           onClick={onTogglePalette}
@@ -147,8 +147,8 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
         gap: '2px',
         paddingRight: isWindows ? '0' : '8px',
         flexShrink: 0,
-        WebkitAppRegion: 'no-drag' as any,
-      }}>
+        WebkitAppRegion: 'no-drag',
+      } as any}>
         {/* AI toggle */}
         <button
           id="toggle-ai-panel"
