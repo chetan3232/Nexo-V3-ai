@@ -18,6 +18,7 @@ import logsRouter from './routes/logs.js';
 
 import { initializeWebSocketGateway } from './websocket/index.js';
 import { streamTokens } from './ai/index.js';
+import { SandboxRuntime } from './runtime/index.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -84,6 +85,24 @@ app.use('/api/deployments', deploymentsRouter);
 app.use('/api/memories', memoriesRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api/logs', logsRouter);
+
+// Run Sandbox Command Route
+app.post('/api/sandbox/run', async (req, res) => {
+  try {
+    const { command } = req.body;
+    if (!command) {
+      return res.status(400).json({ error: 'command is required' });
+    }
+    const sandbox = new SandboxRuntime(workspaceRoot);
+    let logBuffer = '';
+    const result = await sandbox.runCommand(command, (log) => {
+      logBuffer += log;
+    });
+    res.json({ result, logs: logBuffer });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Maintain Legacy Health Check
 app.get('/api/health', (_req, res) => {
