@@ -1,9 +1,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Search, ChevronDown, ChevronRight, FolderGit2, GitBranch, Bug, Package } from 'lucide-react';
+import {
+  RefreshCw, MoreHorizontal, FilePlus, FolderPlus,
+  GitBranch, Search, Package, Bug,
+} from 'lucide-react';
 import { useFileSystemStore } from '@/store/useFileSystemStore';
 import { ExplorerTree } from './ExplorerTree';
-import { AITeamPanel } from './AITeamPanel';
 import { DebuggerPanel } from './DebuggerPanel';
+import { AITeamPanel } from './AITeamPanel';
 
 type Props = {
   collapsed: boolean;
@@ -12,15 +15,13 @@ type Props = {
   isCanvasOpen: boolean;
 };
 
-const tabContent: Record<number, React.ReactNode> = {};
-
 const sectionVariants = {
-  hidden: { opacity: 0, x: -6 },
+  hidden:  { opacity: 0, x: -4 },
   visible: { opacity: 1, x: 0, transition: { duration: 0.15 } },
 };
 
-export function Sidebar({ collapsed, activeTab, onToggleCanvas, isCanvasOpen }: Props) {
-  const syncFromBackend = useFileSystemStore((state) => state.syncFromBackend);
+export function Sidebar({ collapsed, activeTab }: Props) {
+  const syncFromBackend = useFileSystemStore((s) => s.syncFromBackend);
 
   if (collapsed) return null;
 
@@ -33,8 +34,8 @@ export function Sidebar({ collapsed, activeTab, onToggleCanvas, isCanvasOpen }: 
         animate="visible"
         style={{
           height: '100%',
-          background: 'var(--bg-sidebar)',
-          borderRight: '1px solid var(--border)',
+          background: '#111827',
+          borderRight: '1px solid #1f2937',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -43,101 +44,171 @@ export function Sidebar({ collapsed, activeTab, onToggleCanvas, isCanvasOpen }: 
         {/* ── FILE EXPLORER ── */}
         {activeTab === 0 && (
           <>
-            <div className="sidebar-section-header" style={{ paddingTop: '10px' }}>
-              <span>Explorer</span>
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 14px 6px',
+              flexShrink: 0,
+            }}>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: '#c9d1d9',
+              }}>
+                Explorer
+              </span>
               <div style={{ display: 'flex', gap: '2px' }}>
-                <button
-                  className="icon-btn"
-                  onClick={() => void syncFromBackend().catch(() => undefined)}
-                  title="Refresh"
-                >
-                  <RefreshCw size={13} />
-                </button>
+                {[FilePlus, FolderPlus, RefreshCw, MoreHorizontal].map((Icon, i) => (
+                  <button
+                    key={i}
+                    onClick={i === 2 ? () => void syncFromBackend().catch(() => undefined) : undefined}
+                    style={{
+                      background: 'none', border: 'none', padding: '3px',
+                      cursor: 'pointer', color: '#4b5563', borderRadius: '4px',
+                      display: 'flex', transition: 'color 100ms',
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
+                  >
+                    <Icon size={14} />
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Project name */}
-            <div
-              style={{
+            {/* Project section */}
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {/* Root folder label */}
+              <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
-                padding: '3px 10px 2px',
+                gap: '4px',
+                padding: '3px 8px 3px 10px',
                 fontSize: '11px',
                 fontWeight: 700,
-                letterSpacing: '0.05em',
+                letterSpacing: '0.04em',
                 textTransform: 'uppercase',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <ChevronDown size={12} />
-              <FolderGit2 size={13} />
-              <span>Nexo V3</span>
+                color: '#c9d1d9',
+                cursor: 'pointer',
+              }}>
+                <span style={{ fontSize: '10px', color: '#6b7280' }}>▾</span>
+                <span>MY-AWESOME-APP</span>
+              </div>
+
+              {/* File tree */}
+              <ExplorerTree />
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
-              <ExplorerTree />
+            {/* Outline section */}
+            <div style={{ borderTop: '1px solid #1f2937', flexShrink: 0 }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '6px 12px',
+                fontSize: '11px',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: '#6b7280',
+                cursor: 'pointer',
+              }}>
+                <span style={{ fontSize: '10px' }}>›</span>
+                <span>OUTLINE</span>
+              </div>
+            </div>
+            <div style={{ borderTop: '1px solid #1f2937', flexShrink: 0 }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '6px 12px',
+                fontSize: '11px',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: '#6b7280',
+                cursor: 'pointer',
+              }}>
+                <span style={{ fontSize: '10px' }}>›</span>
+                <span>TIMELINE</span>
+              </div>
             </div>
           </>
         )}
 
         {/* ── SEARCH ── */}
         {activeTab === 1 && (
-          <div style={{ padding: '10px 10px 0' }}>
-            <div className="sidebar-section-header" style={{ padding: '0 0 8px' }}>
-              <span>Search</span>
+          <div style={{ padding: '10px 12px 0' }}>
+            <div style={{
+              fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#c9d1d9', marginBottom: '10px',
+            }}>
+              Search
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <input
-                className="ide-input"
                 placeholder="Search"
-                style={{ width: '100%' }}
+                style={{
+                  width: '100%', background: '#0d1117', border: '1px solid #1f2937',
+                  borderRadius: '5px', color: '#e2e8f0', fontSize: '13px',
+                  padding: '5px 10px', outline: 'none', boxSizing: 'border-box',
+                }}
               />
               <input
-                className="ide-input"
                 placeholder="Replace"
-                style={{ width: '100%' }}
+                style={{
+                  width: '100%', background: '#0d1117', border: '1px solid #1f2937',
+                  borderRadius: '5px', color: '#e2e8f0', fontSize: '13px',
+                  padding: '5px 10px', outline: 'none', boxSizing: 'border-box',
+                }}
               />
-              <div style={{ display: 'flex', gap: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                <span>Match Case</span>
-                <span>·</span>
-                <span>Regex</span>
-                <span>·</span>
-                <span>Whole Word</span>
+              <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: '#4b5563', marginTop: '2px' }}>
+                <span style={{ cursor: 'pointer' }}>Aa</span>
+                <span style={{ cursor: 'pointer' }}>.*</span>
+                <span style={{ cursor: 'pointer' }}>W</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── GIT / SOURCE CONTROL ── */}
+        {/* ── SOURCE CONTROL ── */}
         {activeTab === 2 && (
           <div style={{ padding: '10px 0 0' }}>
-            <div className="sidebar-section-header">
-              <span>Source Control</span>
+            <div style={{
+              fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#c9d1d9', padding: '0 14px 10px',
+            }}>
+              Source Control
             </div>
-            <div style={{ padding: '8px 12px' }}>
+            <div style={{ padding: '0 12px' }}>
               <div style={{
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border)',
-                borderRadius: '6px',
-                padding: '8px 10px',
-                fontSize: '12px',
-                color: 'var(--text-secondary)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
+                background: '#0d1117', border: '1px solid #1f2937', borderRadius: '6px',
+                padding: '7px 10px', fontSize: '12px', color: '#9ca3af',
+                display: 'flex', alignItems: 'center', gap: '6px',
               }}>
                 <GitBranch size={13} />
-                <span>codex/nexo-v3</span>
+                <span>main</span>
               </div>
-              <div style={{ marginTop: '12px' }}>
-                <div className="sidebar-section-header" style={{ padding: '0 0 4px' }}>
-                  <span>Changes (3)</span>
+              <div style={{ marginTop: '14px' }}>
+                <div style={{
+                  fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em',
+                  textTransform: 'uppercase', color: '#6b7280', marginBottom: '6px',
+                }}>
+                  Changes (3)
                 </div>
-                {['IdeWorkspace.tsx', 'ActivityBar.tsx', 'globals.css'].map((file) => (
-                  <div key={file} className="tree-row" style={{ gap: '8px' }}>
-                    <span style={{ color: 'var(--amber)', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-code)' }}>M</span>
-                    <span style={{ fontSize: '12px' }}>{file}</span>
+                {['IdeWorkspace.tsx', 'ActivityBar.tsx', 'globals.css'].map((f) => (
+                  <div key={f} style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '4px 6px', fontSize: '12.5px', color: '#9ca3af',
+                    cursor: 'pointer', borderRadius: '4px',
+                  }}>
+                    <span style={{ color: '#f59e0b', fontSize: '11px', fontWeight: 700, fontFamily: 'monospace' }}>M</span>
+                    <span>{f}</span>
                   </div>
                 ))}
               </div>
@@ -145,11 +216,14 @@ export function Sidebar({ collapsed, activeTab, onToggleCanvas, isCanvasOpen }: 
           </div>
         )}
 
-        {/* ── DEBUG ── */}
+        {/* ── RUN & DEBUG ── */}
         {activeTab === 3 && (
           <div style={{ height: '100%', overflow: 'hidden' }}>
-            <div className="sidebar-section-header" style={{ paddingTop: '10px' }}>
-              <span>Run & Debug</span>
+            <div style={{
+              fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#c9d1d9', padding: '10px 14px 8px',
+            }}>
+              Run & Debug
             </div>
             <DebuggerPanel />
           </div>
@@ -157,32 +231,44 @@ export function Sidebar({ collapsed, activeTab, onToggleCanvas, isCanvasOpen }: 
 
         {/* ── EXTENSIONS ── */}
         {activeTab === 4 && (
-          <div style={{ padding: '10px 0 0' }}>
-            <div className="sidebar-section-header">
-              <span>Extensions</span>
+          <div style={{ padding: '10px 12px 0' }}>
+            <div style={{
+              fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#c9d1d9', marginBottom: '10px',
+            }}>
+              Extensions
             </div>
-            <div style={{ padding: '6px 10px' }}>
-              <input className="ide-input" placeholder="Search Extensions…" style={{ width: '100%' }} />
-              <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                <div className="sidebar-section-header" style={{ padding: '0 0 4px' }}>
-                  <span>Installed</span>
-                </div>
-                {['Tailwind CSS IntelliSense', 'ESLint', 'Prettier', 'GitLens'].map((ext) => (
-                  <div key={ext} className="tree-row">
-                    <Package size={12} />
-                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{ext}</span>
-                  </div>
-                ))}
+            <input
+              placeholder="Search Extensions in Marketplace"
+              style={{
+                width: '100%', background: '#0d1117', border: '1px solid #1f2937',
+                borderRadius: '5px', color: '#e2e8f0', fontSize: '12.5px',
+                padding: '5px 10px', outline: 'none', boxSizing: 'border-box', marginBottom: '14px',
+              }}
+            />
+            <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b7280', marginBottom: '6px' }}>
+              Installed
+            </div>
+            {['Tailwind CSS IntelliSense', 'ESLint', 'Prettier', 'GitLens', 'Error Lens'].map((ext) => (
+              <div key={ext} style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '5px 6px', cursor: 'pointer', borderRadius: '4px',
+              }}>
+                <Package size={13} color="#6b7280" />
+                <span style={{ fontSize: '12.5px', color: '#9ca3af' }}>{ext}</span>
               </div>
-            </div>
+            ))}
           </div>
         )}
 
         {/* ── AI TOOLS ── */}
         {activeTab === 5 && (
           <div style={{ height: '100%', overflow: 'hidden' }}>
-            <div className="sidebar-section-header" style={{ paddingTop: '10px' }}>
-              <span>AI Team</span>
+            <div style={{
+              fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#c9d1d9', padding: '10px 14px 8px',
+            }}>
+              AI Team
             </div>
             <AITeamPanel />
           </div>

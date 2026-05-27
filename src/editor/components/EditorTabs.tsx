@@ -1,24 +1,38 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, PanelLeftOpen, PanelLeftClose, Circle } from 'lucide-react';
+import { X, Circle } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 
-function getFileExtension(path: string) {
-  return path.split('.').pop() ?? '';
-}
+function FileTabIcon({ name }: { name: string }) {
+  const ext = name.split('.').pop()?.toLowerCase() ?? '';
 
-function getFileLanguageColor(ext: string) {
-  const colors: Record<string, string> = {
-    tsx: '#61dafb',
-    ts:  '#3178c6',
-    jsx: '#f7df1e',
-    js:  '#f7df1e',
-    css: '#264de4',
-    json:'#fbc02d',
-    md:  '#a78bfa',
-    py:  '#3572A5',
-    rs:  '#dea584',
-  };
-  return colors[ext] ?? '#8b9ab2';
+  if (ext === 'tsx' || ext === 'jsx') {
+    return (
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+        <circle cx="7" cy="7" r="2.2" fill="#61dafb" />
+        <ellipse cx="7" cy="7" rx="5.5" ry="2.2" stroke="#61dafb" strokeWidth="1" fill="none" />
+        <ellipse cx="7" cy="7" rx="5.5" ry="2.2" stroke="#61dafb" strokeWidth="1" fill="none" transform="rotate(60 7 7)" />
+        <ellipse cx="7" cy="7" rx="5.5" ry="2.2" stroke="#61dafb" strokeWidth="1" fill="none" transform="rotate(-60 7 7)" />
+      </svg>
+    );
+  }
+  if (ext === 'ts') {
+    return (
+      <svg width="13" height="13" viewBox="0 0 14 14">
+        <rect x="1" y="1" width="12" height="12" rx="2" fill="#3178c6" />
+        <text x="2.2" y="10.5" fontSize="7" fontWeight="700" fill="white" fontFamily="monospace">TS</text>
+      </svg>
+    );
+  }
+  if (ext === 'css' || ext === 'scss') {
+    return <span style={{ fontSize: '13px', color: '#a78bfa', fontWeight: 700, lineHeight: 1 }}>#</span>;
+  }
+  if (ext === 'json') {
+    return <span style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 700, lineHeight: 1 }}>{'{}'}</span>;
+  }
+  if (ext === 'md') {
+    return <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600, lineHeight: 1 }}>M</span>;
+  }
+  return <span style={{ fontSize: '10px', color: '#6b7280', lineHeight: 1 }}>●</span>;
 }
 
 function getShortName(path: string) {
@@ -36,106 +50,108 @@ export function EditorTabs({ onToggleSidebar }: Props) {
     <div
       style={{
         display: 'flex',
-        alignItems: 'center',
-        background: 'var(--bg-sidebar)',
-        borderBottom: '1px solid var(--border)',
+        alignItems: 'stretch',
+        background: '#111827',
+        borderBottom: '1px solid #1f2937',
+        height: '35px',
+        overflow: 'hidden',
         flexShrink: 0,
-        height: 'var(--tab-h)',
       }}
     >
-      {/* Sidebar toggle */}
-      {onToggleSidebar && (
-        <button
-          className="icon-btn"
-          onClick={onToggleSidebar}
-          style={{ marginLeft: '4px', marginRight: '2px', flexShrink: 0 }}
-          title="Toggle Sidebar"
-        >
-          <PanelLeftOpen size={15} />
-        </button>
-      )}
+      <AnimatePresence initial={false}>
+        {openedFiles.map((tab) => {
+          const isActive = activeFile === tab;
+          const dirty = isDirty(tab);
+          const name = getShortName(tab);
 
-      {/* Tab strip */}
-      <div className="tab-strip" style={{ flex: 1 }}>
-        <AnimatePresence initial={false}>
-          {openedFiles.map((tab) => {
-            const isActive = activeFile === tab;
-            const dirty = isDirty(tab);
-            const name = getShortName(tab);
-            const ext = getFileExtension(tab);
-            const langColor = getFileLanguageColor(ext);
+          return (
+            <motion.div
+              key={tab}
+              layout
+              initial={{ opacity: 0, width: 0 }}
+              animate={{ opacity: 1, width: 'auto' }}
+              exit={{ opacity: 0, width: 0 }}
+              transition={{ duration: 0.12 }}
+              onClick={() => setActiveFile(tab)}
+              style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '0 12px',
+                cursor: 'pointer',
+                borderRight: '1px solid #1f2937',
+                background: isActive ? '#0d1117' : '#111827',
+                color: isActive ? '#e2e8f0' : '#6b7280',
+                fontSize: '13px',
+                whiteSpace: 'nowrap',
+                minWidth: '100px',
+                maxWidth: '180px',
+                transition: 'color 100ms, background 100ms',
+                flexShrink: 0,
+              }}
+            >
+              {/* Active top border line */}
+              {isActive && (
+                <span style={{
+                  position: 'absolute',
+                  top: 0, left: 0, right: 0,
+                  height: '1px',
+                  background: '#3b82f6',
+                }} />
+              )}
 
-            return (
-              <motion.div
-                key={tab}
-                layout
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.12 }}
-                className={`tab-item ${isActive ? 'active' : ''}`}
-                onClick={() => setActiveFile(tab)}
-                id={`tab-${tab.replace(/[/.]/g, '-')}`}
+              {/* File icon */}
+              <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                <FileTabIcon name={name} />
+              </span>
+
+              {/* File name */}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                {name}
+              </span>
+
+              {/* Close/dirty button */}
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); closeFile(tab); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); closeFile(tab); } }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '16px',
+                  height: '16px',
+                  borderRadius: '3px',
+                  flexShrink: 0,
+                  color: '#4b5563',
+                  cursor: 'pointer',
+                  opacity: isActive || dirty ? 1 : 0,
+                  transition: 'opacity 100ms, background 100ms, color 100ms',
+                }}
+                onMouseEnter={(e) => {
+                  const el = e.currentTarget as HTMLSpanElement;
+                  el.style.background = '#374151';
+                  el.style.color = '#e2e8f0';
+                  el.style.opacity = '1';
+                }}
+                onMouseLeave={(e) => {
+                  const el = e.currentTarget as HTMLSpanElement;
+                  el.style.background = 'transparent';
+                  el.style.color = '#4b5563';
+                  if (!isActive && !dirty) el.style.opacity = '0';
+                }}
               >
-                {/* Language dot */}
-                <span
-                  style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    background: langColor,
-                    flexShrink: 0,
-                    opacity: isActive ? 1 : 0.5,
-                  }}
-                />
-
-                {/* File name */}
-                <span className="tab-name" style={{ maxWidth: '130px' }}>
-                  {name}
-                </span>
-
-                {/* Close / dirty indicator */}
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    closeFile(tab);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.stopPropagation(); closeFile(tab); }
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '3px',
-                    marginLeft: '2px',
-                    flexShrink: 0,
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    transition: 'color 100ms, background 100ms',
-                  }}
-                  className="group/close hover:bg-[#2d3748] hover:!text-[color:var(--text-primary)]"
-                >
-                  {dirty ? (
-                    <Circle
-                      size={7}
-                      fill="var(--text-secondary)"
-                      stroke="none"
-                      style={{ flexShrink: 0 }}
-                    />
-                  ) : (
-                    <X size={12} />
-                  )}
-                </span>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </div>
+                {dirty
+                  ? <Circle size={8} fill="#e2e8f0" stroke="none" />
+                  : <X size={13} />
+                }
+              </span>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
     </div>
   );
 }
