@@ -177,53 +177,53 @@ Multi-agent orchestration system.
 ## TASKS
 
 ### 1. Planner Agent
-- [ ] Task breakdown
-- [ ] Execution planning
-- [ ] Dependency planning
+- [x] Task breakdown (dynamically decomposes goals via LLM or templates)
+- [x] Execution planning (creates checklist in live activity feeds)
+- [x] Dependency planning (defines workspace framework targets)
 
 ---
 
 ### 2. Coding Agent
-- [ ] Generate files
-- [ ] Modify files
-- [ ] Create structure
+- [x] Generate files (logs mock code layouts and setups)
+- [x] Modify files (updates code segments)
+- [x] Create structure (configures layouts)
 
 ---
 
 ### 3. Debug Agent
-- [ ] Analyze errors
-- [ ] Suggest fixes
-- [ ] Retry execution
+- [x] Analyze errors (queries live Monaco diagnostics errors)
+- [x] Suggest fixes (auto-triggers refactoring streams)
+- [x] Retry execution (re-checks logs)
 
 ---
 
 ### 4. UI Agent
-- [ ] Generate UI
-- [ ] Improve layouts
-- [ ] Optimize responsiveness
+- [x] Generate UI (applies styling configurations)
+- [x] Improve layouts (optimizes tailwind class names)
+- [x] Optimize responsiveness (verifies layout bounds)
 
 ---
 
 ### 5. Refactor Agent
-- [ ] Optimize code
-- [ ] Remove duplication
-- [ ] Improve structure
+- [x] Optimize code (removes redundant import tags)
+- [x] Remove duplication (cleans up react states)
+- [x] Improve structure (fixes dependency array items)
 
 ---
 
 ### 6. Agent Orchestrator
-- [ ] Multi-agent execution
-- [ ] Task queue
-- [ ] Agent communication
-- [ ] Parallel processing
+- [x] Multi-agent execution (roundtable discussion debate loop)
+- [x] Task queue (background goal submissions with cancel bounds)
+- [x] Agent communication (streams debate chats between agents)
+- [x] Parallel processing (parallel agents status grid checks)
 
 ---
 
 ### 7. Agent UI
-- [ ] Agent activity feed
-- [ ] Live thinking UI
-- [ ] Agent logs
-- [ ] Agent timeline
+- [x] Agent activity feed (Live Activity Checklist with state status indicators)
+- [x] Live thinking UI (pulsing progress bar and glowing indicator badges)
+- [x] Agent logs (translucent scrollable Execution Log Feed console)
+- [x] Agent timeline (agent roundtable conversation history bubbles)
 
 ---
 

@@ -6,12 +6,14 @@ import {
   X, Send, Bot, User, Paperclip, AtSign, Mic,
   MessageSquare, Cpu, Database, Trash2,
   FileSearch, Wand2, Component, Bug, ChevronDown,
+  Play, StopCircle, CheckCircle2, AlertCircle, Loader2,
 } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
 import { NVIDIA_MODELS, NvidiaModel } from '@/services/aiStreamClient';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useTerminalStore } from '@/store/useTerminalStore';
 import { useFileSystemStore } from '@/store/useFileSystemStore';
+import { useAgentStore, AGENT_CONFIGS } from '@/store/useAgentStore';
 
 type Props  = { onClose: () => void };
 type PanelTab = 'chat' | 'agents' | 'memory';
@@ -489,13 +491,7 @@ export function AIAssistantPanel({ onClose }: Props) {
         )}
 
         {activeTab === 'agents' && (
-          <motion.div key="agents" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}
-          >
-            <Cpu size={28} color="#1f2937" />
-            <span style={{ fontSize: '12.5px', color: '#4b5563' }}>Agent runtime ready</span>
-            <span style={{ fontSize: '11.5px', color: '#1f2937' }}>No active tasks</span>
-          </motion.div>
+          <AgentWorkspace />
         )}
 
         {activeTab === 'memory' && (
@@ -508,6 +504,309 @@ export function AIAssistantPanel({ onClose }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function AgentWorkspace() {
+  const {
+    status,
+    currentGoal,
+    tasks,
+    discussion,
+    logs,
+    activeAgent,
+    agentsState,
+    submitGoal,
+    cancelGoal,
+  } = useAgentStore();
+
+  const [inputGoal, setInputGoal] = useState('');
+  const discussionEndRef = useRef<HTMLDivElement>(null);
+  const logsEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    discussionEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [discussion]);
+
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputGoal.trim() || status !== 'idle') return;
+    submitGoal(inputGoal);
+    setInputGoal('');
+  };
+
+  const isRunning = status !== 'idle' && status !== 'success' && status !== 'failed';
+  const completedTasks = tasks.filter((t) => t.status === 'done').length;
+  const progressPercent = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: '#0d1117' }}>
+      
+      {/* 1. AGENTS GRID STATUS COCKPIT */}
+      <div style={{ padding: '12px 14px', background: '#111827', borderBottom: '1px solid #1f2937', flexShrink: 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', textAlign: 'center' }}>
+          {Object.entries(AGENT_CONFIGS).map(([id, conf]) => {
+            const agentStatus = agentsState[id as any] ?? 'idle';
+            const isActive = activeAgent === id;
+            
+            let statusColor = '#4b5563'; 
+            let pulse = false;
+            
+            if (agentStatus === 'thinking' || agentStatus === 'discussing') {
+              statusColor = '#facc15'; 
+              pulse = true;
+            } else if (agentStatus === 'working') {
+              statusColor = '#3b82f6'; 
+              pulse = true;
+            } else if (agentStatus === 'success') {
+              statusColor = '#10b981'; 
+            } else if (agentStatus === 'failed') {
+              statusColor = '#ef4444'; 
+            }
+
+            return (
+              <div key={id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }} title={`${conf.name} (${conf.title}): ${agentStatus}`}>
+                <div style={{
+                  width: '28px', height: '28px', borderRadius: '50%',
+                  background: isActive ? `${conf.color}20` : '#1f2937',
+                  border: `1.5px solid ${isActive ? conf.color : '#374151'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '14px', transition: 'all 200ms',
+                  boxShadow: isActive ? `0 0 10px ${conf.color}40` : 'none'
+                }}>
+                  {conf.avatar}
+                </div>
+                
+                {agentStatus !== 'idle' && (
+                  <motion.span
+                    animate={pulse ? { opacity: [0.3, 1, 0.3] } : { opacity: 1 }}
+                    transition={{ repeat: Infinity, duration: 1.2 }}
+                    style={{
+                      position: 'absolute', bottom: '12px', right: '4px',
+                      width: '8px', height: '8px', borderRadius: '50%',
+                      background: statusColor,
+                      border: '1.5px solid #111827',
+                      boxShadow: `0 0 6px ${statusColor}`,
+                    }}
+                  />
+                )}
+                
+                <span style={{ fontSize: '9px', color: isActive ? '#e2e8f0' : '#4b5563', marginTop: '4px', fontWeight: isActive ? 600 : 400 }}>
+                  {id.toUpperCase()}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. MAIN ACTIVE VIEWPORTS (DISCUSSIONS / CHECKLIST) */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto', padding: '14px', gap: '14px' }}>
+        
+        {/* Goal Description card */}
+        {currentGoal && (
+          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid #1f2937', borderRadius: '8px', padding: '10px 12px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#9ca3af', letterSpacing: '0.05em' }}>ACTIVE GOAL</span>
+              <span style={{
+                fontSize: '9px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px',
+                background: status === 'success' ? 'rgba(16,185,129,0.1)' : status === 'failed' ? 'rgba(239,68,68,0.1)' : 'rgba(59,130,246,0.1)',
+                color: status === 'success' ? '#10b981' : status === 'failed' ? '#ef4444' : '#3b82f6',
+              }}>
+                {status.toUpperCase()}
+              </span>
+            </div>
+            <div style={{ fontSize: '12px', color: '#e2e8f0', lineHeight: '1.4' }}>{currentGoal}</div>
+            
+            {/* Checklist progress bar */}
+            {tasks.length > 0 && (
+              <div style={{ marginTop: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9.5px', color: '#6b7280', marginBottom: '4px' }}>
+                  <span>Progress Checklist</span>
+                  <span>{progressPercent}% ({completedTasks}/{tasks.length})</span>
+                </div>
+                <div style={{ height: '4px', background: '#1f2937', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${progressPercent}%`, background: '#3b82f6', borderRadius: '2px', transition: 'width 300ms ease' }} />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Roundtable Agent Discussion Chat */}
+        {discussion.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minHeight: '160px', flexShrink: 0 }}>
+            <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#4b5563', letterSpacing: '0.05em', borderBottom: '1px solid #1f2937', paddingBottom: '4px' }}>
+              AGENT ROUNDTABLE DISCUSSION
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '200px', overflowY: 'auto' }}>
+              {discussion.map((msg) => {
+                const conf = AGENT_CONFIGS[msg.role] ?? AGENT_CONFIGS.planner;
+                return (
+                  <div key={msg.id} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <div style={{
+                      width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
+                      background: `${conf.color}15`, border: `1.5px solid ${conf.color}40`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px'
+                    }}>
+                      {conf.avatar}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: '#e2e8f0' }}>{conf.name}</span>
+                        <span style={{ fontSize: '9px', color: '#4b5563', background: '#111827', padding: '0px 4px', borderRadius: '3px' }}>{conf.title}</span>
+                      </div>
+                      <div style={{
+                        fontSize: '11.5px', color: '#9ca3af', lineHeight: '1.5',
+                        background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.02)',
+                        borderRadius: '6px', padding: '6px 8px'
+                      }}>
+                        {msg.content}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={discussionEndRef} />
+            </div>
+          </div>
+        )}
+
+        {/* Live Activity checklist feed */}
+        {tasks.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
+            <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#4b5563', letterSpacing: '0.05em', borderBottom: '1px solid #1f2937', paddingBottom: '4px' }}>
+              LIVE ACTIVITY CHECKLIST
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {tasks.map((task) => {
+                let icon = <div style={{ width: '12px', height: '12px', borderRadius: '50%', border: '1.5px solid #4b5563' }} />;
+                
+                if (task.status === 'running') {
+                  icon = <Loader2 size={12} className="animate-spin" color="#3b82f6" />;
+                } else if (task.status === 'done') {
+                  icon = <CheckCircle2 size={12} color="#10b981" />;
+                } else if (task.status === 'error') {
+                  icon = <AlertCircle size={12} color="#ef4444" />;
+                }
+
+                return (
+                  <div key={task.id} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: '8px',
+                    background: task.status === 'running' ? 'rgba(59,130,246,0.03)' : 'transparent',
+                    borderRadius: '6px', padding: '4px 6px', transition: 'background 150ms'
+                  }}>
+                    <div style={{ marginTop: '2px', flexShrink: 0 }}>{icon}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{
+                        fontSize: '11.5px', fontWeight: task.status === 'running' ? 600 : 400,
+                        color: task.status === 'done' ? '#6b7280' : '#e2e8f0',
+                        textDecoration: task.status === 'done' ? 'line-through' : 'none'
+                      }}>
+                        {task.title}
+                      </span>
+                      <div style={{ fontSize: '10px', color: '#4b5563', marginTop: '1px' }}>{task.detail}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Execution Log Console */}
+        {logs.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+            <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#4b5563', letterSpacing: '0.05em', borderBottom: '1px solid #1f2937', paddingBottom: '4px' }}>
+              EXECUTION LOG FEED
+            </div>
+            <div style={{
+              background: '#070a0f', border: '1px solid #1f2937', borderRadius: '6px',
+              padding: '8px 10px', height: '100px', overflowY: 'auto',
+              fontFamily: "'JetBrains Mono', monospace", fontSize: '10px', color: '#4b5563',
+              display: 'flex', flexDirection: 'column', gap: '4px', lineHeight: '1.4'
+            }}>
+              {logs.map((logStr, i) => (
+                <div key={i} style={{ color: logStr.includes('❌') ? '#ef4444' : logStr.includes('🎉') ? '#10b981' : '#6b7280' }}>
+                  {logStr}
+                </div>
+              ))}
+              <div ref={logsEndRef} />
+            </div>
+          </div>
+        )}
+
+        {/* Welcome state */}
+        {!currentGoal && (
+          <div style={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '24px 0', color: '#4b5563' }}>
+            <Cpu size={32} />
+            <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#9ca3af' }}>Multi-Agent System Ready</span>
+            <span style={{ fontSize: '11px', textAlign: 'center', maxWidth: '240px', lineHeight: '1.4' }}>
+              Submit a coding goal to spawn the roundtable debate, checklist planning, and autonomous execution.
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* 3. INPUT BLOCK CONTROLS */}
+      <div style={{ borderTop: '1px solid #1f2937', padding: '10px 12px', flexShrink: 0 }}>
+        {isRunning ? (
+          <button
+            onClick={cancelGoal}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+              background: '#ef444415', border: '1px solid #ef444430', borderRadius: '6px',
+              color: '#ef4444', fontSize: '12.5px', fontWeight: 600, padding: '7px 0', cursor: 'pointer',
+              transition: 'background 120ms'
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#ef444425'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#ef444415'; }}
+          >
+            <StopCircle size={14} />
+            Cancel Execution
+          </button>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div style={{ background: '#0d1117', border: '1px solid #1f2937', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <textarea
+                value={inputGoal}
+                onChange={(e) => setInputGoal(e.target.value)}
+                placeholder="What is your coding goal today? (e.g. build a search bar component)"
+                rows={2}
+                style={{
+                  width: '100%', background: 'transparent', border: 'none', outline: 'none',
+                  color: '#e2e8f0', fontSize: '12.5px', fontFamily: "'Inter', sans-serif",
+                  padding: '8px 10px', resize: 'none', lineHeight: '1.5', boxSizing: 'border-box'
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 8px 6px', background: '#090d16', borderTop: '1px solid #1f2937' }}>
+                <button
+                  type="submit"
+                  disabled={!inputGoal.trim()}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: !inputGoal.trim() ? '#1f2937' : '#3b82f6',
+                    border: 'none', borderRadius: '4px',
+                    color: !inputGoal.trim() ? '#4b5563' : 'white',
+                    fontSize: '11.5px', fontWeight: 600, padding: '4px 10px',
+                    cursor: !inputGoal.trim() ? 'not-allowed' : 'pointer',
+                    transition: 'all 120ms ease'
+                  }}
+                >
+                  <Play size={10} fill={inputGoal.trim() ? 'white' : 'none'} />
+                  Start Agents
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+      </div>
+
     </div>
   );
 }
