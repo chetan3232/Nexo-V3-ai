@@ -21,7 +21,40 @@ const sectionVariants = {
 };
 
 export function Sidebar({ collapsed, activeTab }: Props) {
-  const syncFromBackend = useFileSystemStore((s) => s.syncFromBackend);
+  const { workspacePath, syncFromBackend, createFile, createFolder, openFolder } = useFileSystemStore();
+
+  const handleOpenFolder = async () => {
+    const isElectron = typeof window !== 'undefined' && !!(window as any).nexoDesktop;
+    if (isElectron) {
+      const selected = await (window as any).nexoDesktop.selectFolder();
+      if (selected) {
+        await openFolder(selected);
+      }
+    } else {
+      const path = prompt("Enter local workspace directory path:");
+      if (path) {
+        await openFolder(path);
+      }
+    }
+  };
+
+  const handleCreateFileRoot = async () => {
+    const name = prompt("Enter new file name (at root):");
+    if (name?.trim()) {
+      await createFile('', name.trim());
+    }
+  };
+
+  const handleCreateFolderRoot = async () => {
+    const name = prompt("Enter new folder name (at root):");
+    if (name?.trim()) {
+      await createFolder('', name.trim());
+    }
+  };
+
+  const rootFolderName = workspacePath
+    ? workspacePath.split(/[\\/]/).pop()?.toUpperCase()
+    : 'MY-AWESOME-APP';
 
   if (collapsed) return null;
 
@@ -62,41 +95,62 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                 Explorer
               </span>
               <div style={{ display: 'flex', gap: '2px' }}>
-                {[FilePlus, FolderPlus, RefreshCw, MoreHorizontal].map((Icon, i) => (
-                  <button
-                    key={i}
-                    onClick={i === 2 ? () => void syncFromBackend().catch(() => undefined) : undefined}
-                    style={{
-                      background: 'none', border: 'none', padding: '3px',
-                      cursor: 'pointer', color: '#4b5563', borderRadius: '4px',
-                      display: 'flex', transition: 'color 100ms',
-                    }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
-                  >
-                    <Icon size={14} />
-                  </button>
-                ))}
+                {[FilePlus, FolderPlus, RefreshCw, MoreHorizontal].map((Icon, i) => {
+                  const onClickHandler = 
+                    i === 0 ? handleCreateFileRoot :
+                    i === 1 ? handleCreateFolderRoot :
+                    i === 2 ? () => void syncFromBackend().catch(() => undefined) :
+                    handleOpenFolder;
+                  
+                  const titleText = 
+                    i === 0 ? "New File (Root)" :
+                    i === 1 ? "New Folder (Root)" :
+                    i === 2 ? "Refresh Tree" :
+                    "Open Workspace Folder";
+
+                  return (
+                    <button
+                      key={i}
+                      onClick={onClickHandler}
+                      title={titleText}
+                      style={{
+                        background: 'none', border: 'none', padding: '3px',
+                        cursor: 'pointer', color: '#4b5563', borderRadius: '4px',
+                        display: 'flex', transition: 'color 100ms',
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
+                    >
+                      <Icon size={14} />
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {/* Project section */}
             <div style={{ flex: 1, overflowY: 'auto' }}>
               {/* Root folder label */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '3px 8px 3px 10px',
-                fontSize: '11px',
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                color: '#c9d1d9',
-                cursor: 'pointer',
-              }}>
+              <div 
+                onClick={handleOpenFolder}
+                title="Change Workspace Folder"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '3px 8px 3px 10px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  color: '#c9d1d9',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.color = '#3b82f6'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.color = '#c9d1d9'; }}
+              >
                 <span style={{ fontSize: '10px', color: '#6b7280' }}>▾</span>
-                <span>MY-AWESOME-APP</span>
+                <span>{rootFolderName}</span>
               </div>
 
               {/* File tree */}

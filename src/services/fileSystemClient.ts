@@ -44,3 +44,21 @@ export async function deleteWorkspacePath(filePath: string) {
     body: JSON.stringify({ path: filePath }),
   });
 }
+
+export async function createWorkspaceFolder(dirPath: string) {
+  return request<{ ok: true }>('/api/fs/mkdir', {
+    method: 'POST',
+    body: JSON.stringify({ path: dirPath }),
+  });
+}
+
+export async function getWorkspacePath() {
+  return request<{ workspaceRoot: string }>('/api/fs/workspace');
+}
+
+export async function setWorkspacePath(dirPath: string) {
+  return request<{ ok: true; workspaceRoot: string }>('/api/fs/workspace', {
+    method: 'POST',
+    body: JSON.stringify({ path: dirPath }),
+  });
+}

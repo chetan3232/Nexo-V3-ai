@@ -75,7 +75,7 @@ Build stable VS Code-style IDE foundation.
 - [x] Add rename
 - [x] Add delete
 - [x] Add drag-drop
-- [ ] Add context menu
+- [x] Add context menu (premium absolute glassmorphic right-click options)
 - [x] Add search files (live filter tree auto-expands active matches)
 
 ---
@@ -84,18 +84,18 @@ Build stable VS Code-style IDE foundation.
 - [x] Install xterm.js
 - [x] Setup node-pty (implemented using portable, zero-compile concurrent child_process shells)
 - [x] Create terminal tabs
-- [ ] Add split terminal
+- [x] Add split terminal (concurrent interactive dual flex panels layout)
 - [x] Add shell sessions
 - [x] Add terminal persistence (keeps scrolling logs intact in memory)
 
 ---
 
 ### 6. Workspace System
-- [ ] Open folder
-- [ ] Recent projects
-- [ ] Save workspace state
-- [ ] Restore sessions
-- [ ] Persistent tabs
+- [x] Open folder (Electron native folder open dialog + server route updates)
+- [x] Recent projects (automatically saved local history dropdown selectors)
+- [x] Save workspace state (persists opened files and active viewport paths)
+- [x] Restore sessions (restores canvas layouts seamlessly on boot reload)
+- [x] Persistent tabs (keeps active monaco models in local states)
 
 ---
 
@@ -103,7 +103,7 @@ Build stable VS Code-style IDE foundation.
 - [x] Add command palette
 - [x] Add smooth animations
 - [x] Add keyboard shortcuts
-- [ ] Add notifications
+- [x] Add notifications (smooth, high-end glassmorphic toast notification stack)
 - [x] Add custom title bar
 - [x] Add dark theme system
 

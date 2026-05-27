@@ -150,12 +150,49 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
   // Multi-terminal store states
   const { terminals, activeId, createTerminal, removeTerminal, setActiveId } = useTerminalStore();
 
+  const [isSplit, setIsSplit] = useState(false);
+  const [splitActiveId, setSplitActiveId] = useState<string | null>(null);
+
+  const handleToggleSplit = () => {
+    if (isSplit) {
+      setIsSplit(false);
+      setSplitActiveId(null);
+    } else {
+      const other = terminals.find((t) => t.id !== activeId);
+      if (other) {
+        setSplitActiveId(other.id);
+        setIsSplit(true);
+      } else {
+        setIsSplit(true);
+        createTerminal();
+      }
+    }
+  };
+
   // Auto-spawn a first shell instance on mount
   useEffect(() => {
     if (terminals.length === 0 && isElectron) {
       createTerminal();
     }
   }, [terminals.length, isElectron]);
+
+  // Sync split active ID when terminals list changes
+  useEffect(() => {
+    if (isSplit) {
+      if (terminals.length <= 1) {
+        setIsSplit(false);
+        setSplitActiveId(null);
+      } else if (!splitActiveId || !terminals.some((t) => t.id === splitActiveId)) {
+        const other = terminals.find((t) => t.id !== activeId);
+        if (other) {
+          setSplitActiveId(other.id);
+        } else {
+          setIsSplit(false);
+          setSplitActiveId(null);
+        }
+      }
+    }
+  }, [terminals, isSplit, splitActiveId, activeId]);
 
   return (
     <section style={{
@@ -250,12 +287,16 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
               >
                 <Plus size={14} />
               </button>
-              {/* Split terminal mock */}
+              {/* Split terminal button */}
               <button
+                onClick={handleToggleSplit}
                 title="Split Terminal"
-                style={iconBtnStyle}
+                style={{
+                  ...iconBtnStyle,
+                  color: isSplit ? '#3b82f6' : '#4b5563',
+                }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = isSplit ? '#3b82f6' : '#4b5563'; }}
               >
                 <Columns2 size={14} />
               </button>
@@ -306,20 +347,38 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
               !isElectron ? (
                 <BrowserTerminalFallback />
               ) : (
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative', background: '#0d1117' }}>
-                  {terminals.map((term) => (
-                    <div
-                      key={term.id}
-                      style={{
-                        display: activeId === term.id ? 'block' : 'none',
-                        flex: 1,
-                        height: '100%',
-                        minHeight: 0,
-                      }}
-                    >
-                      <RealTerminal id={term.id} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0, background: '#0d1117' }}>
+                  {/* Left Pane (Active Terminal) */}
+                  <div style={{ flex: 1, minWidth: 0, height: '100%', borderRight: isSplit ? '1px solid #1f2937' : 'none' }}>
+                    {terminals.map((term) => (
+                      <div
+                        key={term.id}
+                        style={{
+                          display: activeId === term.id ? 'block' : 'none',
+                          height: '100%',
+                        }}
+                      >
+                        <RealTerminal id={term.id} />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Right Pane (Split Terminal) */}
+                  {isSplit && splitActiveId && (
+                    <div style={{ flex: 1, minWidth: 0, height: '100%' }}>
+                      {terminals.map((term) => (
+                        <div
+                          key={term.id}
+                          style={{
+                            display: splitActiveId === term.id ? 'block' : 'none',
+                            height: '100%',
+                          }}
+                        >
+                          <RealTerminal id={term.id} />
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )
             )}

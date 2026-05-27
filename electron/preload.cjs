@@ -31,4 +31,7 @@ contextBridge.exposeInMainWorld('nexoDesktop', {
   getNvidiaKey: () => {
     return process.env.NVIDIA_API_KEY || process.env.VITE_NVIDIA_API_KEY || '';
   },
+  selectFolder: () => {
+    return ipcRenderer.invoke('select-folder');
+  },
 });

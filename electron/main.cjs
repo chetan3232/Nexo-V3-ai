@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, session, ipcMain } = require('electron');
+const { app, BrowserWindow, shell, session, ipcMain, dialog } = require('electron');
 const path = require('node:path');
 const os   = require('node:os');
 const child_process = require('node:child_process');
@@ -57,6 +57,18 @@ function setupContentSecurityPolicy() {
 function setupTerminalIpc(window) {
   const isWin = os.platform() === 'win32';
   const shellCmd = isWin ? 'powershell.exe' : (process.env.SHELL || 'bash');
+
+  ipcMain.handle('select-folder', async () => {
+    const result = await dialog.showOpenDialog(window, {
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Open Workspace Folder',
+      buttonLabel: 'Select Folder',
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return null;
+    }
+    return result.filePaths[0];
+  });
 
   ipcMain.on('terminal-init', (event, id) => {
     if (shellProcesses.has(id)) return; // shell already active

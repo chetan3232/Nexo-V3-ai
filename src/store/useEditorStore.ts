@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { writeWorkspaceFile } from '@/services/fileSystemClient';
+import { useNotificationStore } from './useNotificationStore';
 
 export type EditorFile = {
   path: string;
@@ -22,6 +23,7 @@ type EditorState = {
   toggleSplitFile: () => void;
   markSaved: (path: string, content: string) => void;
   isDirty: (path: string) => boolean;
+  clearTabs: () => void;
 };
 
 function detectLanguage(filePath: string): string {
@@ -113,7 +115,14 @@ export const useEditorStore = create<EditorState>()(
         })),
       saveFile: (path) => {
         const content = get().files[path]?.content ?? '';
-        void writeWorkspaceFile(path, content).catch(() => undefined);
+        const filename = path.split('/').pop() ?? path;
+        writeWorkspaceFile(path, content)
+          .then(() => {
+            useNotificationStore.getState().showToast(`Saved ${filename} successfully!`, 'success');
+          })
+          .catch((err) => {
+            useNotificationStore.getState().showToast(`Failed to save: ${err.message}`, 'error');
+          });
         set((state) => ({
           files: {
             ...state.files,
@@ -137,6 +146,7 @@ export const useEditorStore = create<EditorState>()(
         const file = get().files[path];
         return file ? file.content !== file.savedContent : false;
       },
+      clearTabs: () => set({ files: {}, openedFiles: [], activeFile: null, splitFile: null }),
     }),
     {
       name: 'nexo-editor-state-v3',

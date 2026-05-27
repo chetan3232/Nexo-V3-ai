@@ -1,5 +1,14 @@
 import { create } from 'zustand';
-import { deleteWorkspacePath, fetchWorkspaceTree, renameWorkspacePath } from '@/services/fileSystemClient';
+import { useEditorStore } from './useEditorStore';
+import {
+  deleteWorkspacePath,
+  fetchWorkspaceTree,
+  renameWorkspacePath,
+  createWorkspaceFolder,
+  getWorkspacePath,
+  setWorkspacePath,
+  writeWorkspaceFile,
+} from '@/services/fileSystemClient';
 
 export type FileNode = {
   id: string;
@@ -15,6 +24,8 @@ type FileSystemState = {
   tree: FileNode[];
   expanded: Record<string, boolean>;
   selectedPath: string | null;
+  workspacePath: string;
+  recentProjects: string[];
   toggleExpanded: (path: string) => void;
   selectPath: (path: string) => void;
   renameNode: (path: string, nextName: string) => void;
@@ -22,6 +33,10 @@ type FileSystemState = {
   moveNode: (sourcePath: string, targetFolderPath: string) => void;
   syncFromBackend: () => Promise<void>;
   flattenPaths: () => string[];
+  createFile: (parentPath: string, name: string) => Promise<void>;
+  createFolder: (parentPath: string, name: string) => Promise<void>;
+  openFolder: (path: string) => Promise<void>;
+  loadWorkspaceRoot: () => Promise<void>;
 };
 
 const initialTree: FileNode[] = [
@@ -70,6 +85,8 @@ export const useFileSystemStore = create<FileSystemState>((set, get) => ({
   tree: initialTree,
   expanded: { src: true, 'src/editor': true, 'src/ai': true },
   selectedPath: 'src/editor/CodeEditor.tsx',
+  workspacePath: '',
+  recentProjects: [],
   toggleExpanded: (path) => set((state) => ({ expanded: { ...state.expanded, [path]: !state.expanded[path] } })),
   selectPath: (path) => set({ selectedPath: path }),
   renameNode: (path, nextName) =>
@@ -129,5 +146,43 @@ export const useFileSystemStore = create<FileSystemState>((set, get) => ({
       if (node.type === 'file') paths.push(node.path);
     });
     return paths;
+  },
+  createFile: async (parentPath, name) => {
+    const targetPath = parentPath ? `${parentPath}/${name}` : name;
+    await writeWorkspaceFile(targetPath, '');
+    await get().syncFromBackend();
+  },
+  createFolder: async (parentPath, name) => {
+    const targetPath = parentPath ? `${parentPath}/${name}` : name;
+    await createWorkspaceFolder(targetPath);
+    await get().syncFromBackend();
+  },
+  openFolder: async (newPath) => {
+    const res = await setWorkspacePath(newPath);
+    const recent = get().recentProjects.filter((p) => p !== newPath);
+    const updatedRecent = [newPath, ...recent].slice(0, 5);
+    localStorage.setItem('nexo_recent_projects', JSON.stringify(updatedRecent));
+    
+    // Clear opened file tabs to avoid referencing files from the old workspace
+    useEditorStore.getState().clearTabs();
+
+    set({
+      workspacePath: res.workspaceRoot,
+      recentProjects: updatedRecent,
+      expanded: {},
+      selectedPath: null,
+    });
+    await get().syncFromBackend();
+  },
+  loadWorkspaceRoot: async () => {
+    try {
+      const res = await getWorkspacePath();
+      const savedRecent = localStorage.getItem('nexo_recent_projects');
+      const recent = savedRecent ? JSON.parse(savedRecent) : [];
+      set({ workspacePath: res.workspaceRoot, recentProjects: recent });
+      await get().syncFromBackend();
+    } catch (e) {
+      await get().syncFromBackend();
+    }
   },
 }));
