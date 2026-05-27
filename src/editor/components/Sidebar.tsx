@@ -1,10 +1,12 @@
-import { FolderGit2, RefreshCw, Search, Users, TerminalSquare, Sparkles, Clock, AlertTriangle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  RefreshCw, MoreHorizontal, FilePlus, FolderPlus,
+  GitBranch, Search, Package, Bug,
+} from 'lucide-react';
 import { useFileSystemStore } from '@/store/useFileSystemStore';
 import { ExplorerTree } from './ExplorerTree';
-import { AITeamPanel } from './AITeamPanel';
 import { DebuggerPanel } from './DebuggerPanel';
-import { VisualBuilderPanel } from './VisualBuilderPanel';
-import { TimeTravelPanel } from './TimeTravelPanel';
+import { AITeamPanel } from './AITeamPanel';
 
 type Props = {
   collapsed: boolean;
@@ -13,91 +15,265 @@ type Props = {
   isCanvasOpen: boolean;
 };
 
-export function Sidebar({ collapsed, activeTab, onToggleCanvas, isCanvasOpen }: Props) {
-  const syncFromBackend = useFileSystemStore((state) => state.syncFromBackend);
+const sectionVariants = {
+  hidden:  { opacity: 0, x: -4 },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.15 } },
+};
 
-  if (collapsed) {
-    return <div className="h-full border-r border-cyan-400/10 bg-slate-900/40" />;
-  }
+export function Sidebar({ collapsed, activeTab }: Props) {
+  const syncFromBackend = useFileSystemStore((s) => s.syncFromBackend);
 
-  // 1. FILE EXPLORER TAB (Index 0)
-  if (activeTab === 0) {
-    return (
-      <aside className="h-full flex flex-col border-r border-cyan-400/20 bg-slate-900/40 p-3 text-sm text-slate-200 backdrop-blur-lg">
-        <div className="mb-4 flex items-center justify-between gap-2 text-xs uppercase tracking-[0.2em] text-cyan-300/90 shrink-0">
-          <span className="flex items-center gap-2">
-            <FolderGit2 className="h-4 w-4" /> Explorer
-          </span>
-          <button
-            onClick={() => void syncFromBackend().catch(() => undefined)}
-            className="rounded p-1 text-slate-400 hover:bg-cyan-500/10 hover:text-cyan-100"
-            title="Refresh from backend filesystem"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          <ExplorerTree />
-        </div>
-      </aside>
-    );
-  }
+  if (collapsed) return null;
 
-  // 2. SEARCH TAB (Index 1)
-  if (activeTab === 1) {
-    return (
-      <aside className="h-full flex flex-col border-r border-cyan-400/20 bg-slate-900/40 p-3 text-sm text-slate-200 backdrop-blur-lg">
-        <div className="mb-4 flex items-center justify-between gap-2 text-xs uppercase tracking-[0.2em] text-cyan-300/90 shrink-0">
-          <span className="flex items-center gap-2">
-            <Search className="h-4 w-4" /> Search Files
-          </span>
-        </div>
-        <div className="space-y-3">
-          <input
-            placeholder="Search string"
-            className="w-full rounded border border-cyan-300/20 bg-slate-950 px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-cyan-300 placeholder:text-slate-600 font-mono"
-          />
-          <p className="text-[10px] text-slate-500 font-mono">// Press Enter to search references</p>
-        </div>
-      </aside>
-    );
-  }
+  return (
+    <AnimatePresence mode="wait">
+      <motion.aside
+        key={activeTab}
+        variants={sectionVariants}
+        initial="hidden"
+        animate="visible"
+        style={{
+          height: '100%',
+          background: '#111827',
+          borderRight: '1px solid #1f2937',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        {/* ── FILE EXPLORER ── */}
+        {activeTab === 0 && (
+          <>
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 14px 6px',
+              flexShrink: 0,
+            }}>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: '#c9d1d9',
+              }}>
+                Explorer
+              </span>
+              <div style={{ display: 'flex', gap: '2px' }}>
+                {[FilePlus, FolderPlus, RefreshCw, MoreHorizontal].map((Icon, i) => (
+                  <button
+                    key={i}
+                    onClick={i === 2 ? () => void syncFromBackend().catch(() => undefined) : undefined}
+                    style={{
+                      background: 'none', border: 'none', padding: '3px',
+                      cursor: 'pointer', color: '#4b5563', borderRadius: '4px',
+                      display: 'flex', transition: 'color 100ms',
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
+                  >
+                    <Icon size={14} />
+                  </button>
+                ))}
+              </div>
+            </div>
 
-  // 3. AI TEAM ROUNDTABLE DEBATES (Index 2)
-  if (activeTab === 2) {
-    return (
-      <aside className="h-full border-r border-cyan-400/20 bg-slate-900/40 backdrop-blur-lg overflow-hidden">
-        <AITeamPanel />
-      </aside>
-    );
-  }
+            {/* Project section */}
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {/* Root folder label */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '3px 8px 3px 10px',
+                fontSize: '11px',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: '#c9d1d9',
+                cursor: 'pointer',
+              }}>
+                <span style={{ fontSize: '10px', color: '#6b7280' }}>▾</span>
+                <span>MY-AWESOME-APP</span>
+              </div>
 
-  // 4. SMART AI DEBUGGER & CONSOLE (Index 3)
-  if (activeTab === 3) {
-    return (
-      <aside className="h-full border-r border-cyan-400/20 bg-slate-900/40 backdrop-blur-lg overflow-hidden">
-        <DebuggerPanel />
-      </aside>
-    );
-  }
+              {/* File tree */}
+              <ExplorerTree />
+            </div>
 
-  // 5. AI VISUAL BUILDER (Index 4)
-  if (activeTab === 4) {
-    return (
-      <aside className="h-full border-r border-cyan-400/20 bg-slate-900/40 backdrop-blur-lg overflow-hidden">
-        <VisualBuilderPanel onToggleSplit={onToggleCanvas} isSplitActive={isCanvasOpen} />
-      </aside>
-    );
-  }
+            {/* Outline section */}
+            <div style={{ borderTop: '1px solid #1f2937', flexShrink: 0 }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '6px 12px',
+                fontSize: '11px',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: '#6b7280',
+                cursor: 'pointer',
+              }}>
+                <span style={{ fontSize: '10px' }}>›</span>
+                <span>OUTLINE</span>
+              </div>
+            </div>
+            <div style={{ borderTop: '1px solid #1f2937', flexShrink: 0 }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '6px 12px',
+                fontSize: '11px',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: '#6b7280',
+                cursor: 'pointer',
+              }}>
+                <span style={{ fontSize: '10px' }}>›</span>
+                <span>TIMELINE</span>
+              </div>
+            </div>
+          </>
+        )}
 
-  // 6. TIME TRAVEL HISTORY (Index 5)
-  if (activeTab === 5) {
-    return (
-      <aside className="h-full border-r border-cyan-400/20 bg-slate-900/40 backdrop-blur-lg overflow-hidden">
-        <TimeTravelPanel />
-      </aside>
-    );
-  }
+        {/* ── SEARCH ── */}
+        {activeTab === 1 && (
+          <div style={{ padding: '10px 12px 0' }}>
+            <div style={{
+              fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#c9d1d9', marginBottom: '10px',
+            }}>
+              Search
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <input
+                placeholder="Search"
+                style={{
+                  width: '100%', background: '#0d1117', border: '1px solid #1f2937',
+                  borderRadius: '5px', color: '#e2e8f0', fontSize: '13px',
+                  padding: '5px 10px', outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+              <input
+                placeholder="Replace"
+                style={{
+                  width: '100%', background: '#0d1117', border: '1px solid #1f2937',
+                  borderRadius: '5px', color: '#e2e8f0', fontSize: '13px',
+                  padding: '5px 10px', outline: 'none', boxSizing: 'border-box',
+                }}
+              />
+              <div style={{ display: 'flex', gap: '8px', fontSize: '11px', color: '#4b5563', marginTop: '2px' }}>
+                <span style={{ cursor: 'pointer' }}>Aa</span>
+                <span style={{ cursor: 'pointer' }}>.*</span>
+                <span style={{ cursor: 'pointer' }}>W</span>
+              </div>
+            </div>
+          </div>
+        )}
 
-  return <div className="h-full border-r border-cyan-400/10 bg-slate-900/40" />;
+        {/* ── SOURCE CONTROL ── */}
+        {activeTab === 2 && (
+          <div style={{ padding: '10px 0 0' }}>
+            <div style={{
+              fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#c9d1d9', padding: '0 14px 10px',
+            }}>
+              Source Control
+            </div>
+            <div style={{ padding: '0 12px' }}>
+              <div style={{
+                background: '#0d1117', border: '1px solid #1f2937', borderRadius: '6px',
+                padding: '7px 10px', fontSize: '12px', color: '#9ca3af',
+                display: 'flex', alignItems: 'center', gap: '6px',
+              }}>
+                <GitBranch size={13} />
+                <span>main</span>
+              </div>
+              <div style={{ marginTop: '14px' }}>
+                <div style={{
+                  fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em',
+                  textTransform: 'uppercase', color: '#6b7280', marginBottom: '6px',
+                }}>
+                  Changes (3)
+                </div>
+                {['IdeWorkspace.tsx', 'ActivityBar.tsx', 'globals.css'].map((f) => (
+                  <div key={f} style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '4px 6px', fontSize: '12.5px', color: '#9ca3af',
+                    cursor: 'pointer', borderRadius: '4px',
+                  }}>
+                    <span style={{ color: '#f59e0b', fontSize: '11px', fontWeight: 700, fontFamily: 'monospace' }}>M</span>
+                    <span>{f}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── RUN & DEBUG ── */}
+        {activeTab === 3 && (
+          <div style={{ height: '100%', overflow: 'hidden' }}>
+            <div style={{
+              fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#c9d1d9', padding: '10px 14px 8px',
+            }}>
+              Run & Debug
+            </div>
+            <DebuggerPanel />
+          </div>
+        )}
+
+        {/* ── EXTENSIONS ── */}
+        {activeTab === 4 && (
+          <div style={{ padding: '10px 12px 0' }}>
+            <div style={{
+              fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#c9d1d9', marginBottom: '10px',
+            }}>
+              Extensions
+            </div>
+            <input
+              placeholder="Search Extensions in Marketplace"
+              style={{
+                width: '100%', background: '#0d1117', border: '1px solid #1f2937',
+                borderRadius: '5px', color: '#e2e8f0', fontSize: '12.5px',
+                padding: '5px 10px', outline: 'none', boxSizing: 'border-box', marginBottom: '14px',
+              }}
+            />
+            <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b7280', marginBottom: '6px' }}>
+              Installed
+            </div>
+            {['Tailwind CSS IntelliSense', 'ESLint', 'Prettier', 'GitLens', 'Error Lens'].map((ext) => (
+              <div key={ext} style={{
+                display: 'flex', alignItems: 'center', gap: '8px',
+                padding: '5px 6px', cursor: 'pointer', borderRadius: '4px',
+              }}>
+                <Package size={13} color="#6b7280" />
+                <span style={{ fontSize: '12.5px', color: '#9ca3af' }}>{ext}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── AI TOOLS ── */}
+        {activeTab === 5 && (
+          <div style={{ height: '100%', overflow: 'hidden' }}>
+            <div style={{
+              fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
+              textTransform: 'uppercase', color: '#c9d1d9', padding: '10px 14px 8px',
+            }}>
+              AI Team
+            </div>
+            <AITeamPanel />
+          </div>
+        )}
+      </motion.aside>
+    </AnimatePresence>
+  );
 }

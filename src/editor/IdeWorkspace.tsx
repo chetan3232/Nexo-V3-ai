@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Group, Panel, Separator } from 'react-resizable-panels';
-import { Binary, ChevronDown, ChevronUp, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ActivityBar } from './components/ActivityBar';
 import { Sidebar } from './components/Sidebar';
 import { EditorTabs } from './components/EditorTabs';
@@ -8,152 +7,235 @@ import { CodeEditor } from './CodeEditor';
 import { BottomPanel } from './components/BottomPanel';
 import { StatusBar } from './components/StatusBar';
 import { CommandPalette } from './components/CommandPalette';
+import { AIAssistantPanel } from './components/AIAssistantPanel';
+import { TitleBar } from './components/TitleBar';
 import { useIdeLayoutStore } from '@/store/useIdeLayoutStore';
-import { NetflixPreview } from './components/NetflixPreview';
+
+// ── Drag-resize handle ─────────────────────────────────────────────────────
+function ResizeHandle({
+  direction,
+  onDrag,
+}: {
+  direction: 'col' | 'row';
+  onDrag: (delta: number) => void;
+}) {
+  const dragging = useRef(false);
+  const last = useRef(0);
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    dragging.current = true;
+    last.current = direction === 'col' ? e.clientX : e.clientY;
+
+    const move = (ev: MouseEvent) => {
+      if (!dragging.current) return;
+      const pos = direction === 'col' ? ev.clientX : ev.clientY;
+      onDrag(pos - last.current);
+      last.current = pos;
+    };
+    const up = () => { dragging.current = false; };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up, { once: true });
+  };
+
+  return (
+    <div
+      onMouseDown={onMouseDown}
+      style={{
+        flexShrink: 0,
+        background: 'transparent',
+        transition: 'background 120ms',
+        cursor: direction === 'col' ? 'col-resize' : 'row-resize',
+        zIndex: 10,
+        ...(direction === 'col'
+          ? { width: '4px', height: '100%' }
+          : { height: '4px', width: '100%' }),
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = '#3b82f6'; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+    />
+  );
+}
+
+// ── Default sizes (px) ────────────────────────────────────────────────────
+const DEFAULT_SIDEBAR_W  = 220;
+const DEFAULT_AI_W       = 280;
+const DEFAULT_TERMINAL_H = 220;
+
+const MIN_SIDEBAR_W  = 140;
+const MAX_SIDEBAR_W  = 380;
+const MIN_AI_W       = 200;
+const MAX_AI_W       = 480;
+const MIN_TERMINAL_H = 36;
+const MAX_TERMINAL_H = 520;
 
 export function IdeWorkspace() {
-  const [activeIcon, setActiveIcon] = useState(0);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [showVisualCanvas, setShowVisualCanvas] = useState(false);
+  const [activeIcon, setActiveIcon]     = useState(0);
+  const [paletteOpen, setPaletteOpen]   = useState(false);
+  const [aiPanelOpen, setAiPanelOpen]   = useState(true);
+
+  // Pixel-based sizes for reliable layout
+  const [sidebarW,  setSidebarW]  = useState(DEFAULT_SIDEBAR_W);
+  const [aiW,       setAiW]       = useState(DEFAULT_AI_W);
+  const [terminalH, setTerminalH] = useState(DEFAULT_TERMINAL_H);
+  const [termCollapsed, setTermCollapsed] = useState(false);
 
   const {
-    leftPanelSizes,
-    setLeftPanelSizes,
-    mainPanelSizes,
-    setMainPanelSizes,
     sidebarCollapsed,
     setSidebarCollapsed,
-    bottomPanelCollapsed,
-    setBottomPanelCollapsed,
   } = useIdeLayoutStore();
 
+  // Global shortcuts
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setPaletteOpen((value) => !value);
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setAiPanelOpen((v) => !v);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === '`') {
+        e.preventDefault();
+        setTermCollapsed((v) => !v);
       }
     };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+  // Resize callbacks
+  const onSidebarDrag = useCallback((delta: number) => {
+    setSidebarW((w) => Math.min(MAX_SIDEBAR_W, Math.max(MIN_SIDEBAR_W, w + delta)));
+  }, []);
+
+  const onAiDrag = useCallback((delta: number) => {
+    setAiW((w) => Math.min(MAX_AI_W, Math.max(MIN_AI_W, w - delta)));
+  }, []);
+
+  const onTermDrag = useCallback((delta: number) => {
+    setTerminalH((h) => {
+      const next = Math.min(MAX_TERMINAL_H, Math.max(MIN_TERMINAL_H, h - delta));
+      setTermCollapsed(next <= MIN_TERMINAL_H + 4);
+      return next;
+    });
   }, []);
 
   return (
-    <div className="relative flex h-screen flex-col overflow-hidden bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.18),transparent_45%),radial-gradient(circle_at_90%_20%,rgba(20,184,166,0.16),transparent_38%),#020617] text-slate-100 font-sans">
-      <div className="pointer-events-none absolute -left-28 top-24 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-8 right-10 h-52 w-52 rounded-full bg-fuchsia-400/20 blur-3xl" />
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      width: '100vw',
+      overflow: 'hidden',
+      background: '#0d1117',
+      color: '#c9d1d9',
+      fontFamily: "'Inter', sans-serif",
+    }}>
+      {/* ── Title bar ── */}
+      <TitleBar
+        onTogglePalette={() => setPaletteOpen(true)}
+        onToggleAI={() => setAiPanelOpen((v) => !v)}
+        aiPanelOpen={aiPanelOpen}
+      />
 
-      <header className="flex h-11 items-center justify-between border-b border-cyan-300/20 bg-slate-950/60 px-3 backdrop-blur-xl shrink-0">
-        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-cyan-200">
-          <Binary className="h-4 w-4" /> NEXO V3 IDE
-        </div>
-        <button
-          onClick={() => setPaletteOpen(true)}
-          className="rounded-md border border-cyan-300/30 bg-cyan-400/10 px-2 py-1 text-xs text-cyan-100 hover:bg-cyan-300/20"
-        >
-          Command Palette (Ctrl/Cmd + K)
-        </button>
-      </header>
+      {/* ── Main body ── */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
-      <div className="flex-1 min-h-0 relative">
-        <Group orientation="vertical" onLayoutChange={(layout) => setMainPanelSizes(Object.values(layout))}>
-          <Panel defaultSize={mainPanelSizes[0] ?? 72} minSize={45}>
-            <Group orientation="horizontal" onLayoutChange={(layout) => setLeftPanelSizes(Object.values(layout))}>
-              <Panel defaultSize={leftPanelSizes[0] ?? 8} minSize={6} maxSize={10}>
-                <ActivityBar activeIndex={activeIcon} onSelect={(idx) => {
-                  setActiveIcon(idx);
-                  if (sidebarCollapsed) {
-                    setSidebarCollapsed(false);
-                  }
-                }} />
-              </Panel>
-              <Separator className="w-px bg-cyan-300/20 hover:bg-cyan-300/50 animate-pulse" />
-              <Panel
-                collapsible
-                collapsedSize={0}
-                onCollapse={() => setSidebarCollapsed(true)}
-                onExpand={() => setSidebarCollapsed(false)}
-                defaultSize={leftPanelSizes[1] ?? 20}
-                minSize={14}
-                maxSize={32}
-              >
-                <Sidebar 
-                  collapsed={sidebarCollapsed} 
+        {/* Activity bar */}
+        <ActivityBar
+          activeIndex={activeIcon}
+          onSelect={(idx) => {
+            setActiveIcon(idx);
+            if (sidebarCollapsed) setSidebarCollapsed(false);
+          }}
+        />
+
+        {/* Sidebar */}
+        <AnimatePresence initial={false}>
+          {!sidebarCollapsed && (
+            <motion.div
+              key="sidebar"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: sidebarW, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.18, ease: 'easeInOut' }}
+              style={{ flexShrink: 0, overflow: 'hidden', height: '100%' }}
+            >
+              <div style={{ width: sidebarW, height: '100%' }}>
+                <Sidebar
+                  collapsed={false}
                   activeTab={activeIcon}
-                  onToggleCanvas={() => setShowVisualCanvas(prev => !prev)}
-                  isCanvasOpen={showVisualCanvas}
+                  onToggleCanvas={() => {}}
+                  isCanvasOpen={false}
                 />
-              </Panel>
-              <Separator className="w-px bg-cyan-300/20 hover:bg-cyan-300/50" />
-              <Panel defaultSize={leftPanelSizes[2] ?? 72} minSize={38}>
-                <div className="flex h-full flex-col rounded-tl-2xl border-l border-cyan-300/15 bg-slate-900/45 backdrop-blur-xl">
-                  <div className="flex items-center justify-between border-b border-cyan-300/15 bg-slate-950/35 pr-2">
-                    <EditorTabs />
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setShowVisualCanvas(prev => !prev)}
-                        className={`rounded px-2.5 py-1 text-xs font-semibold border transition ${
-                          showVisualCanvas 
-                            ? 'bg-fuchsia-500/20 border-fuchsia-400 text-fuchsia-200' 
-                            : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-                        }`}
-                        title="Split-Screen Visual Canvas Sandbox"
-                      >
-                        {showVisualCanvas ? 'Close Split Canvas' : 'Split Visual Canvas'}
-                      </button>
-                      <button
-                        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                        className="rounded p-1.5 text-slate-300 hover:bg-slate-800/70 hover:text-cyan-200"
-                        aria-label="toggle-sidebar"
-                      >
-                        {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {showVisualCanvas ? (
-                    <div className="flex-1 grid grid-cols-2 min-h-0 overflow-hidden divide-x divide-cyan-400/20">
-                      <div className="min-h-0 overflow-hidden">
-                        <CodeEditor />
-                      </div>
-                      <div className="min-h-0 overflow-hidden">
-                        <NetflixPreview />
-                      </div>
-                    </div>
-                  ) : (
-                    <CodeEditor />
-                  )}
-                </div>
-              </Panel>
-            </Group>
-          </Panel>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-          <Separator className="h-px bg-cyan-300/20 hover:bg-cyan-300/50" />
-          <Panel
-            collapsible
-            collapsedSize={6}
-            onCollapse={() => setBottomPanelCollapsed(true)}
-            onExpand={() => setBottomPanelCollapsed(false)}
-            defaultSize={mainPanelSizes[1] ?? 28}
-            minSize={12}
-            maxSize={45}
-          >
-            <div className="relative h-full border-t border-cyan-300/20">
-              <button
-                onClick={() => setBottomPanelCollapsed(!bottomPanelCollapsed)}
-                className="absolute right-3 top-2 z-20 rounded bg-slate-900/80 p-1 text-cyan-200 hover:bg-slate-800"
-                aria-label="toggle-bottom-panel"
-              >
-                {bottomPanelCollapsed ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-              <BottomPanel />
+        {/* Sidebar resize handle */}
+        {!sidebarCollapsed && (
+          <ResizeHandle direction="col" onDrag={onSidebarDrag} />
+        )}
+
+        {/* ── Editor column (flex grows) ── */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
+
+          {/* Editor area */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            <EditorTabs onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <CodeEditor />
             </div>
-          </Panel>
-        </Group>
+          </div>
+
+          {/* Terminal resize handle */}
+          <ResizeHandle direction="row" onDrag={onTermDrag} />
+
+          {/* Bottom panel */}
+          <div style={{
+            height: termCollapsed ? 36 : terminalH,
+            flexShrink: 0,
+            overflow: 'hidden',
+            transition: 'height 150ms ease',
+          }}>
+            <BottomPanel
+              collapsed={termCollapsed}
+              onToggle={() => setTermCollapsed((v) => !v)}
+            />
+          </div>
+        </div>
+
+        {/* AI panel resize handle */}
+        {aiPanelOpen && (
+          <ResizeHandle direction="col" onDrag={onAiDrag} />
+        )}
+
+        {/* AI Assistant Panel */}
+        <AnimatePresence initial={false}>
+          {aiPanelOpen && (
+            <motion.div
+              key="ai-panel"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: aiW, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.18, ease: 'easeInOut' }}
+              style={{ flexShrink: 0, overflow: 'hidden', height: '100%' }}
+            >
+              <div style={{ width: aiW, height: '100%' }}>
+                <AIAssistantPanel onClose={() => setAiPanelOpen(false)} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      <StatusBar />
+      {/* ── Status bar ── */}
+      <StatusBar aiPanelOpen={aiPanelOpen} sidebarOpen={!sidebarCollapsed} />
+
+      {/* ── Command Palette ── */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );

@@ -1,15 +1,120 @@
-import { Cpu, GitBranch, Wifi } from 'lucide-react';
+import { GitBranch, AlertCircle, AlertTriangle, CheckCircle2, Zap, Bell } from 'lucide-react';
+import { useEditorStore } from '@/store/useEditorStore';
 
-export function StatusBar() {
+type Props = {
+  aiPanelOpen?: boolean;
+  sidebarOpen?: boolean;
+};
+
+function StatusItem({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
   return (
-    <footer className="flex h-8 items-center justify-between border-t border-cyan-400/20 bg-slate-950 px-3 text-[11px] text-slate-300">
-      <div className="flex items-center gap-4">
-        <span className="flex items-center gap-1"><GitBranch className="h-3.5 w-3.5" /> codex/nexo-v3</span>
-        <span>TypeScript React</span>
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '0 8px',
+        height: '100%',
+        cursor: onClick ? 'pointer' : 'default',
+        fontSize: '11.5px',
+        color: 'rgba(255,255,255,0.88)',
+        whiteSpace: 'nowrap',
+        transition: 'background 100ms',
+      }}
+      onMouseEnter={(e) => { if (onClick) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.1)'; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Divider() {
+  return <div style={{ width: '1px', height: '60%', background: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />;
+}
+
+export function StatusBar({ aiPanelOpen, sidebarOpen }: Props) {
+  const { activeFile, files } = useEditorStore();
+  const activeFileData = activeFile ? files[activeFile] : null;
+
+  const langLabel: Record<string, string> = {
+    typescript: 'TypeScript React',
+    javascript: 'JavaScript React',
+    tsx: 'TypeScript React',
+    jsx: 'JavaScript React',
+    css: 'CSS',
+    json: 'JSON',
+    markdown: 'Markdown',
+    python: 'Python',
+    plaintext: 'Plain Text',
+  };
+
+  const language = activeFileData?.language
+    ? (langLabel[activeFileData.language] ?? activeFileData.language)
+    : 'Plain Text';
+
+  return (
+    <footer style={{
+      height: '22px',
+      background: '#3b82f6',
+      display: 'flex',
+      alignItems: 'center',
+      flexShrink: 0,
+      overflow: 'hidden',
+    }}>
+      {/* Left side */}
+      <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+        <StatusItem onClick={() => {}}>
+          <GitBranch size={12} />
+          <span>main</span>
+        </StatusItem>
+
+        <StatusItem onClick={() => {}}>
+          <AlertCircle size={12} />
+          <span>0</span>
+          <AlertTriangle size={12} style={{ marginLeft: '4px' }} />
+          <span>0</span>
+        </StatusItem>
       </div>
-      <div className="flex items-center gap-4">
-        <span className="flex items-center gap-1"><Cpu className="h-3.5 w-3.5 text-cyan-300" /> AI Assist: ON</span>
-        <span className="flex items-center gap-1"><Wifi className="h-3.5 w-3.5 text-emerald-300" /> Runtime Ready</span>
+
+      {/* Spacer */}
+      <div style={{ flex: 1 }} />
+
+      {/* Right side — matches reference exactly */}
+      <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+        {activeFileData && (
+          <>
+            <StatusItem onClick={() => {}}>
+              <span>Ln 1, Col 1</span>
+            </StatusItem>
+
+            <StatusItem onClick={() => {}}>
+              <span>Spaces: 2</span>
+            </StatusItem>
+
+            <StatusItem onClick={() => {}}>
+              <span>UTF-8</span>
+            </StatusItem>
+
+            <StatusItem onClick={() => {}}>
+              <span>LF</span>
+            </StatusItem>
+
+            <StatusItem onClick={() => {}}>
+              <span>{language}</span>
+            </StatusItem>
+
+            <StatusItem onClick={() => {}}>
+              <CheckCircle2 size={11} />
+              <span>Prettier</span>
+            </StatusItem>
+          </>
+        )}
+
+        <StatusItem onClick={() => {}}>
+          <Bell size={11} />
+        </StatusItem>
       </div>
     </footer>
   );

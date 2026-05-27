@@ -1,109 +1,119 @@
 import { create } from 'zustand';
-import { streamAIResponse } from '@/services/aiStreamClient';
-import { useMemoryStore } from '@/store/useMemoryStore';
-import { upsertBackendMemory } from '@/services/memoryClient';
+import { persist } from 'zustand/middleware';
+import {
+  streamNvidiaResponse,
+  NVIDIA_MODELS,
+  DEFAULT_MODEL,
+  ChatMessage as ApiMessage,
+} from '@/services/aiStreamClient';
 
-type ChatMessage = {
-  id: string;
-  role: 'user' | 'assistant';
+export type ChatMessage = {
+  id:      string;
+  role:    'user' | 'assistant';
   content: string;
-  model?: string;
-  tokens?: number;
-  mentions?: string[];
+  model?:  string;
 };
-
-type StreamMode = 'websocket' | 'sse';
 
 type ChatState = {
-  messages: ChatMessage[];
-  input: string;
+  messages:   ChatMessage[];
+  input:      string;
   isStreaming: boolean;
-  model: string;
-  streamMode: StreamMode;
-  tokenUsage: number;
-  setInput: (value: string) => void;
-  setModel: (value: string) => void;
-  setStreamMode: (value: StreamMode) => void;
-  sendMessage: (context: string) => Promise<void>;
+  model:      string;
+  error:      string | null;
+
+  setInput:   (v: string) => void;
+  setModel:   (v: string) => void;
+  clearError: () => void;
+  clearChat:  () => void;
+  sendMessage: (context?: string) => Promise<void>;
 };
 
-const MODELS = ['openrouter/claude-sonnet', 'gemini-2.5-pro', 'deepseek-chat', 'ollama/qwen2.5-coder'];
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set, get) => ({
+      messages:    [],
+      input:       '',
+      isStreaming:  false,
+      model:        DEFAULT_MODEL,
+      error:        null,
 
-export const useChatStore = create<ChatState>((set, get) => ({
-  messages: [
-    { id: 'm0', role: 'assistant', content: 'NEXO AI panel online. Mention files like @src/editor/CodeEditor.tsx.', model: MODELS[0], tokens: 16 },
-  ],
-  input: '',
-  isStreaming: false,
-  model: MODELS[0],
-  streamMode: 'websocket',
-  tokenUsage: 16,
-  setInput: (value) => set({ input: value }),
-  setModel: (value) => set({ model: value }),
-  setStreamMode: (value) => set({ streamMode: value }),
-  sendMessage: async (context) => {
-    const { input, model, messages, streamMode, tokenUsage } = get();
-    if (!input.trim()) return;
+      setInput:   (v) => set({ input: v }),
+      setModel:   (v) => set({ model: v }),
+      clearError: ()  => set({ error: null }),
+      clearChat:  ()  => set({ messages: [] }),
 
-    const mentions = Array.from(input.matchAll(/@([\w./-]+)/g)).map((m) => m[1]);
-    const userMessage: ChatMessage = { id: `u-${Date.now()}`, role: 'user', content: input, mentions };
-    const assistantId = `a-${Date.now()}`;
-    useMemoryStore.getState().upsertMemory({
-      layer: 'conversation',
-      title: `User request: ${input.slice(0, 42)}`,
-      content: input,
-      source: 'ai-chat',
-      tags: ['chat', ...mentions],
-    });
-    void upsertBackendMemory({
-      layer: 'conversation',
-      title: `User request: ${input.slice(0, 42)}`,
-      content: input,
-      source: 'ai-chat',
-      tags: ['chat', ...mentions],
-    }).catch(() => undefined);
+      sendMessage: async (context?: string) => {
+        const { input, model, messages } = get();
+        if (!input.trim() || get().isStreaming) return;
 
-    set({
-      input: '',
-      isStreaming: true,
-      messages: [...messages, userMessage, { id: assistantId, role: 'assistant', content: '', model, tokens: 0 }],
-    });
+        const userText = context ? `${input}\n\n---\n${context}` : input;
 
-    const synthetic = [
-      `Using ${streamMode.toUpperCase()} stream.`,
-      'Context injected:',
-      context,
-      'Planned actions:',
-      '- inspect open files',
-      '- analyze selected code',
-      '- suggest patch with rationale',
-    ].join('\n');
+        const userMsg: ChatMessage = {
+          id:      `u-${Date.now()}`,
+          role:    'user',
+          content: input,  // display original input, not injected context
+        };
+        const assistantId = `a-${Date.now()}`;
+        const assistantMsg: ChatMessage = {
+          id:      assistantId,
+          role:    'assistant',
+          content: '',
+          model,
+        };
 
-    await streamAIResponse(streamMode === 'sse' ? 'sse' : 'websocket', synthetic, {
-      onToken: (chunk) => {
-        set((state) => ({
-          messages: state.messages.map((message) =>
-            message.id === assistantId
-              ? { ...message, content: `${message.content}${chunk}`, tokens: (message.tokens ?? 0) + Math.ceil(chunk.length / 4) }
-              : message
-          ),
-        }));
+        set({
+          input:       '',
+          isStreaming:  true,
+          error:        null,
+          messages:    [...messages, userMsg, assistantMsg],
+        });
+
+        // Build conversation history for the API
+        const history: ApiMessage[] = [
+          {
+            role:    'system',
+            content: 'You are Nexo AI, an expert coding assistant built into a VS Code-style IDE. Be concise, precise, and developer-friendly. Format code in markdown code blocks.',
+          },
+          // Send up to last 20 messages as context
+          ...[...messages.slice(-20), userMsg].map((m) => ({
+            role:    m.role as 'user' | 'assistant',
+            content: m.id === userMsg.id ? userText : m.content,
+          })),
+        ];
+
+        await streamNvidiaResponse(history, model, {
+          onToken: (chunk) => {
+            set((state) => ({
+              messages: state.messages.map((m) =>
+                m.id === assistantId
+                  ? { ...m, content: m.content + chunk }
+                  : m
+              ),
+            }));
+          },
+          onDone: () => {
+            set({ isStreaming: false });
+          },
+          onError: (err) => {
+            set({
+              isStreaming: false,
+              error: err.message,
+              messages: get().messages.map((m) =>
+                m.id === assistantId
+                  ? { ...m, content: `❌ Error: ${err.message}` }
+                  : m
+              ),
+            });
+          },
+        });
       },
-      onDone: () => undefined,
-      onError: () => undefined,
-    });
-
-    const newTokens = Math.ceil((input.length + synthetic.length) / 4);
-    useMemoryStore.getState().upsertMemory({
-      layer: 'short',
-      title: `AI response: ${input.slice(0, 42)}`,
-      content: synthetic,
-      source: 'ai-chat',
-      tags: ['stream', model],
-    });
-    set({
-      isStreaming: false,
-      tokenUsage: tokenUsage + newTokens,
-    });
-  },
-}));
+    }),
+    {
+      name: 'nexo-chat-v3',
+      partialize: (s) => ({
+        messages: s.messages.slice(-50),  // persist last 50 messages
+        model:    s.model,
+      }),
+    }
+  )
+);

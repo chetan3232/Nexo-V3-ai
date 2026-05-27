@@ -1,7 +1,8 @@
 import { FormEvent } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, Cpu, Send, Waves } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Bot, Send, User, Sparkles } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
 import { sendContextualMessage } from '@/ai/contextInjection';
 
@@ -13,56 +14,159 @@ const modelOptions = [
 ];
 
 export function AIChatPanel() {
-  const { messages, input, isStreaming, model, streamMode, tokenUsage, setInput, setModel, setStreamMode } = useChatStore();
+  const { messages, input, isStreaming, model, setInput, setModel } = useChatStore();
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (!input.trim() || isStreaming) return;
     await sendContextualMessage();
   };
 
   return (
-    <section className="flex h-full flex-col bg-slate-950/85 backdrop-blur-xl">
-      <div className="flex items-center justify-between border-b border-cyan-400/20 px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-300">
-        <div className="flex items-center gap-2"><Bot className="h-4 w-4 text-cyan-300" /> AI Chat</div>
-        <div className="flex items-center gap-3 text-[10px] normal-case tracking-normal">
-          <select value={model} onChange={(e) => setModel(e.target.value)} className="rounded border border-cyan-300/30 bg-slate-900 px-2 py-1 text-slate-200">
-            {modelOptions.map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
-          <select value={streamMode} onChange={(e) => setStreamMode(e.target.value as 'websocket' | 'sse')} className="rounded border border-cyan-300/30 bg-slate-900 px-2 py-1 text-slate-200">
-            <option value="websocket">WebSocket</option>
-            <option value="sse">SSE</option>
-          </select>
-          <span className="flex items-center gap-1 text-cyan-200"><Cpu className="h-3.5 w-3.5" /> {tokenUsage} tokens</span>
+    <section style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--bg-base)' }}>
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '8px 14px',
+          borderBottom: '1px solid var(--border)',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '12.5px', fontWeight: 600, color: 'var(--text-primary)' }}>
+          <Sparkles size={14} color="var(--accent)" />
+          AI Chat
         </div>
+        <select
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          style={{
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border)',
+            borderRadius: '5px',
+            color: 'var(--text-secondary)',
+            fontSize: '11px',
+            padding: '3px 6px',
+            cursor: 'pointer',
+            outline: 'none',
+          }}
+        >
+          {modelOptions.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
       </div>
 
-      <div className="flex-1 space-y-3 overflow-auto p-4 text-sm">
-        {messages.map((message) => (
-          <div key={message.id} className={`rounded-xl border p-3 ${message.role === 'assistant' ? 'border-cyan-400/20 bg-slate-900/70 text-slate-100' : 'border-slate-700 bg-slate-800/60 text-slate-200'}`}>
-            <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-slate-400">
-              <span>{message.role}</span>
-              {message.model && <span>{message.model}</span>}
-              {typeof message.tokens === 'number' && <span>{message.tokens} tok</span>}
-              {message.mentions?.length ? <span>mentions: {message.mentions.join(', ')}</span> : null}
-            </div>
-            <div className="prose prose-invert max-w-none prose-pre:border prose-pre:border-cyan-300/20 prose-pre:bg-slate-950">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content || (isStreaming ? '...' : '')}</ReactMarkdown>
-            </div>
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {messages.length === 0 && (
+          <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+            No messages yet. Ask anything about your code.
           </div>
-        ))}
-        {isStreaming && <div className="flex items-center gap-2 text-xs text-cyan-300"><Waves className="h-4 w-4 animate-pulse" /> streaming response...</div>}
+        )}
+
+        <AnimatePresence initial={false}>
+          {messages.map((msg) => {
+            const isUser = msg.role === 'user';
+            return (
+              <motion.div
+                key={msg.id}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}
+              >
+                <div
+                  style={{
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '5px',
+                    background: isUser ? 'var(--bg-input)' : 'var(--accent-dim)',
+                    border: `1px solid ${isUser ? 'var(--border)' : 'rgba(59,130,246,0.3)'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    marginTop: '1px',
+                  }}
+                >
+                  {isUser
+                    ? <User size={11} color="var(--text-muted)" />
+                    : <Bot size={11} color="var(--accent)" />
+                  }
+                </div>
+                <div
+                  className="prose-ide"
+                  style={{
+                    flex: 1,
+                    background: isUser ? 'var(--bg-input)' : 'transparent',
+                    border: isUser ? '1px solid var(--border)' : 'none',
+                    borderRadius: '6px',
+                    padding: isUser ? '7px 10px' : '0',
+                    minWidth: 0,
+                  }}
+                >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {msg.content || (isStreaming ? '…' : '')}
+                  </ReactMarkdown>
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+
+        {isStreaming && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingLeft: '30px' }}>
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--accent)' }}
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      <form onSubmit={submit} className="border-t border-cyan-400/20 p-3">
-        <div className="flex items-end gap-2">
+      {/* Input */}
+      <form onSubmit={submit} style={{ borderTop: '1px solid var(--border)', padding: '10px' }}>
+        <div style={{ display: 'flex', gap: '6px' }}>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask with context, e.g. fix @src/editor/CodeEditor.tsx based on current errors"
-            className="h-20 flex-1 resize-none rounded border border-cyan-300/25 bg-slate-900 p-2 text-sm text-slate-100 outline-none focus:border-cyan-300"
+            placeholder="Ask with context…"
+            rows={2}
+            style={{
+              flex: 1,
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              color: 'var(--text-primary)',
+              fontSize: '12.5px',
+              fontFamily: 'var(--font-ui)',
+              padding: '7px 10px',
+              resize: 'none',
+              outline: 'none',
+            }}
           />
-          <button type="submit" disabled={isStreaming} className="rounded border border-cyan-300/30 bg-cyan-400/15 p-2 text-cyan-100 disabled:opacity-40">
-            <Send className="h-4 w-4" />
+          <button
+            type="submit"
+            disabled={isStreaming || !input.trim()}
+            style={{
+              width: '32px',
+              alignSelf: 'flex-end',
+              height: '32px',
+              borderRadius: '6px',
+              background: (isStreaming || !input.trim()) ? 'var(--border)' : 'var(--accent)',
+              border: 'none',
+              color: 'white',
+              cursor: (isStreaming || !input.trim()) ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Send size={13} />
           </button>
         </div>
       </form>

@@ -3,12 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NEXO V3</title>
+    <title>Nexo AI IDE — Modern Developer Environment</title>
+    <meta name="description" content="Nexo V3 — AI-powered IDE with Monaco Editor, intelligent code assistance, and seamless developer experience." />
+    <meta name="theme-color" content="#0d1117" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#0891b2" />
+    <!-- Fonts: Inter (UI) + JetBrains Mono (code) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <script src="https://bundle.run/buffer@6.0.3"></script>
     <script>
       window.global = window;
@@ -16,6 +18,10 @@
       window.process = window.process || {};
       window.process.env = window.process.env || {};
     </script>
+    <style>
+      /* Prevent flash of unstyled content */
+      html { background: #0d1117; }
+    </style>
   </head>
   <body>
     <div id="root"></div>
