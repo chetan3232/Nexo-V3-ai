@@ -22,10 +22,10 @@ import { streamTokens } from './ai/index.js';
 const app = express();
 const server = http.createServer(app);
 const port = Number(process.env.NEXO_API_PORT ?? 8787);
-const workspaceRoot = path.resolve(process.env.NEXO_WORKSPACE_ROOT ?? process.cwd());
+let workspaceRoot = path.resolve(process.env.NEXO_WORKSPACE_ROOT ?? process.cwd());
 
 // Initialize Legacy Engines for complete backwards compatibility
-const memoryEngine = new FileMemoryEngine(workspaceRoot);
+let memoryEngine = new FileMemoryEngine(workspaceRoot);
 const deploymentProviders = {
   vercel: { configFile: 'vercel.json', buildCommand: 'npm run build', outputDirectory: 'dist' },
   netlify: { configFile: 'netlify.toml', buildCommand: 'npm run build', outputDirectory: 'dist' },
@@ -183,8 +183,44 @@ app.get('/api/fs/read', async (req, res) => {
 app.post('/api/fs/write', async (req, res) => {
   try {
     const filePath = resolveWorkspacePath(String(req.body?.path ?? ''));
+    // Auto-create parent directory if it does not exist
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
     await fs.writeFile(filePath, String(req.body?.content ?? ''), 'utf8');
     res.json({ ok: true });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Create Folder Route
+app.post('/api/fs/mkdir', async (req, res) => {
+  try {
+    const dirPath = resolveWorkspacePath(String(req.body?.path ?? ''));
+    await fs.mkdir(dirPath, { recursive: true });
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Get Workspace Path Route
+app.get('/api/fs/workspace', (req, res) => {
+  res.json({ workspaceRoot });
+});
+
+// Update Workspace Path Route
+app.post('/api/fs/workspace', async (req, res) => {
+  try {
+    const { path: newPath } = req.body;
+    if (!newPath) {
+      return res.status(400).json({ error: 'path is required' });
+    }
+    const resolved = path.resolve(newPath);
+    await fs.mkdir(resolved, { recursive: true });
+    workspaceRoot = resolved;
+    memoryEngine = new FileMemoryEngine(workspaceRoot);
+    console.log(`[Server] Dynamic workspace root updated to: ${workspaceRoot}`);
+    res.json({ ok: true, workspaceRoot });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

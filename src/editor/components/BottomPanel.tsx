@@ -7,6 +7,7 @@ import {
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
+import { useTerminalStore } from '@/store/useTerminalStore';
 
 type PanelTab = 'terminal' | 'problems' | 'output' | 'debug';
 
@@ -36,7 +37,7 @@ const tabs: { id: PanelTab; label: string }[] = [
   { id: 'debug',    label: 'DEBUG CONSOLE' },
 ];
 
-function RealTerminal() {
+function RealTerminal({ id }: { id: string }) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const termInstance = useRef<Terminal | null>(null);
 
@@ -45,12 +46,11 @@ function RealTerminal() {
     if (!container) return;
 
     const isElectron = typeof window !== 'undefined' && !!(window as any).nexoDesktop;
-
-    if (!isElectron) return; // Fallback handled by parent render
+    if (!isElectron) return;
 
     const desktop = (window as any).nexoDesktop;
 
-    // Instantiate premium terminal
+    // Instantiate high-performance terminal
     const term = new Terminal({
       cursorBlink: true,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
@@ -74,30 +74,33 @@ function RealTerminal() {
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
     term.open(container);
-    fitAddon.fit();
+    if (container.clientWidth > 0 && container.clientHeight > 0) {
+      try { fitAddon.fit(); } catch (e) {}
+    }
 
     termInstance.current = term;
 
-    // Spawn live native process shell
-    desktop.initTerminal();
-
-    // Hook listeners
-    const unsubscribe = desktop.onTerminalData((data: string) => {
+    // Hook listeners securely using unique terminal ID channel
+    const unsubscribe = desktop.onTerminalData(id, (data: string) => {
       term.write(data);
     });
 
     term.onData((data) => {
-      desktop.sendTerminalInput(data);
+      desktop.sendTerminalInput(id, data);
     });
 
-    // Resize handlers
+    // Handle resizing on split drags
     const handleResize = () => {
-      try { fitAddon.fit(); } catch (e) {}
+      try {
+        if (container && container.clientWidth > 0 && container.clientHeight > 0) {
+          fitAddon.fit();
+        }
+      } catch (e) {}
     };
 
     window.addEventListener('resize', handleResize);
     
-    // Fit terminal layout once container animates open
+    // Fit canvas initially once container mounts
     const timer = setTimeout(handleResize, 150);
 
     return () => {
@@ -106,10 +109,10 @@ function RealTerminal() {
       window.removeEventListener('resize', handleResize);
       clearTimeout(timer);
     };
-  }, []);
+  }, [id]);
 
   return (
-    <div style={{ flex: 1, height: '100%', background: '#0d1117', padding: '6px 12px', minHeight: 0 }}>
+    <div style={{ width: '100%', height: '100%', padding: '6px 12px', boxSizing: 'border-box' }}>
       <div ref={terminalRef} style={{ width: '100%', height: '100%', minHeight: '120px' }} />
     </div>
   );
@@ -137,9 +140,9 @@ function BrowserTerminalFallback() {
         <TerminalSquare size={20} color="#4b5563" />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-        <span style={{ fontSize: '13.5px', color: '#e2e8f0', fontWeight: 600 }}>Interactive Terminal Restricted</span>
+        <span style={{ fontSize: '13.5px', color: '#e2e8f0', fontWeight: 600 }}>Interactive Terminals Restricted</span>
         <span style={{ fontSize: '12px', color: '#4b5563', maxWidth: '400px', lineHeight: '1.5' }}>
-          Real OS shell terminal execution is limited inside standard web viewports. To launch integrated PowerShell or Bash consoles, please open Nexo inside our Electron desktop app.
+          Concurrent OS shell execution is limited inside standard web viewports. To launch integrated multi-terminal shells (PowerShell or Bash), please open Nexo inside our Electron desktop app.
         </span>
       </div>
     </div>
@@ -149,6 +152,53 @@ function BrowserTerminalFallback() {
 export function BottomPanel({ collapsed, onToggle }: Props) {
   const [activeTab, setActiveTab] = useState<PanelTab>('terminal');
   const isElectron = typeof window !== 'undefined' && !!(window as any).nexoDesktop;
+
+  // Multi-terminal store states
+  const { terminals, activeId, createTerminal, removeTerminal, setActiveId } = useTerminalStore();
+
+  const [isSplit, setIsSplit] = useState(false);
+  const [splitActiveId, setSplitActiveId] = useState<string | null>(null);
+
+  const handleToggleSplit = () => {
+    if (isSplit) {
+      setIsSplit(false);
+      setSplitActiveId(null);
+    } else {
+      const other = terminals.find((t) => t.id !== activeId);
+      if (other) {
+        setSplitActiveId(other.id);
+        setIsSplit(true);
+      } else {
+        setIsSplit(true);
+        createTerminal();
+      }
+    }
+  };
+
+  // Auto-spawn a first shell instance on mount
+  useEffect(() => {
+    if (terminals.length === 0 && isElectron) {
+      createTerminal();
+    }
+  }, [terminals.length, isElectron]);
+
+  // Sync split active ID when terminals list changes
+  useEffect(() => {
+    if (isSplit) {
+      if (terminals.length <= 1) {
+        setIsSplit(false);
+        setSplitActiveId(null);
+      } else if (!splitActiveId || !terminals.some((t) => t.id === splitActiveId)) {
+        const other = terminals.find((t) => t.id !== activeId);
+        if (other) {
+          setSplitActiveId(other.id);
+        } else {
+          setIsSplit(false);
+          setSplitActiveId(null);
+        }
+      }
+    }
+  }, [terminals, isSplit, splitActiveId, activeId]);
 
   return (
     <section style={{
@@ -199,50 +249,86 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
 
         {/* Right-side controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', paddingRight: '8px' }}>
-          {/* Shell selector */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            background: '#1f2937',
-            border: '1px solid #374151',
-            borderRadius: '4px',
-            padding: '2px 8px',
-            fontSize: '11px',
-            color: '#9ca3af',
-            cursor: 'pointer',
-            marginRight: '4px',
-          }}>
-            <TerminalSquare size={11} />
-            <span>{isElectron ? 'shell' : 'mock'}</span>
-          </div>
+          {/* Shell Selector Dropdown */}
+          {activeTab === 'terminal' && isElectron && activeId && (
+            <div style={{ position: 'relative', marginRight: '4px', display: 'flex', alignItems: 'center' }}>
+              <select
+                value={activeId}
+                onChange={(e) => setActiveId(e.target.value)}
+                style={{
+                  background: '#1f2937',
+                  border: '1px solid #374151',
+                  borderRadius: '4px',
+                  padding: '2px 18px 2px 6px',
+                  fontSize: '11.5px',
+                  color: '#e2e8f0',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  height: '22px',
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                }}
+              >
+                {terminals.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    🐚 {t.name}
+                  </option>
+                ))}
+              </select>
+              {/* Dropdown caret indicator */}
+              <span style={{ position: 'absolute', right: '6px', pointerEvents: 'none', fontSize: '8px', color: '#6b7280' }}>▼</span>
+            </div>
+          )}
 
-          {[
-            { icon: Plus,        title: 'New Terminal' },
-            { icon: Columns2,    title: 'Split Terminal' },
-            { icon: Trash2,      title: 'Kill Terminal' },
-          ].map(({ icon: Icon, title }) => (
-            <button key={title} title={title} style={{
-              background: 'none', border: 'none', padding: '4px', cursor: 'pointer',
-              color: '#4b5563', borderRadius: '4px', display: 'flex',
-              transition: 'color 100ms',
-            }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
-            >
-              <Icon size={14} />
-            </button>
-          ))}
+          {activeTab === 'terminal' && isElectron && (
+            <>
+              {/* Add shell */}
+              <button
+                onClick={createTerminal}
+                title="New Terminal"
+                style={iconBtnStyle}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
+              >
+                <Plus size={14} />
+              </button>
+              {/* Split terminal button */}
+              <button
+                onClick={handleToggleSplit}
+                title="Split Terminal"
+                style={{
+                  ...iconBtnStyle,
+                  color: isSplit ? '#3b82f6' : '#4b5563',
+                }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = isSplit ? '#3b82f6' : '#4b5563'; }}
+              >
+                <Columns2 size={14} />
+              </button>
+              {/* Remove shell */}
+              <button
+                onClick={() => { if (activeId) removeTerminal(activeId); }}
+                disabled={terminals.length <= 1}
+                title="Kill Terminal"
+                style={{
+                  ...iconBtnStyle,
+                  cursor: terminals.length <= 1 ? 'not-allowed' : 'pointer',
+                  color: terminals.length <= 1 ? '#1f2937' : '#4b5563',
+                }}
+                onMouseEnter={(e) => { if (terminals.length > 1) (e.currentTarget as HTMLButtonElement).style.color = '#ff7b72'; }}
+                onMouseLeave={(e) => { if (terminals.length > 1) (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
+              >
+                <Trash2 size={14} />
+              </button>
+            </>
+          )}
 
-          {/* Chevron toggle */}
+          {/* Chevron panel toggle */}
           <button
             onClick={onToggle}
             title={collapsed ? 'Maximize panel' : 'Minimize panel'}
-            style={{
-              background: 'none', border: 'none', padding: '4px', cursor: 'pointer',
-              color: '#4b5563', borderRadius: '4px', display: 'flex',
-              transition: 'color 100ms',
-            }}
+            style={iconBtnStyle}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
           >
@@ -262,9 +348,45 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
             transition={{ duration: 0.1 }}
             style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
           >
-            {/* TERMINAL */}
+            {/* TERMINAL CONCENTRIC DRAWER */}
             {activeTab === 'terminal' && (
-              isElectron ? <RealTerminal /> : <BrowserTerminalFallback />
+              !isElectron ? (
+                <BrowserTerminalFallback />
+              ) : (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0, background: '#0d1117' }}>
+                  {/* Left Pane (Active Terminal) */}
+                  <div style={{ flex: 1, minWidth: 0, height: '100%', borderRight: isSplit ? '1px solid #1f2937' : 'none' }}>
+                    {terminals.map((term) => (
+                      <div
+                        key={term.id}
+                        style={{
+                          display: activeId === term.id ? 'block' : 'none',
+                          height: '100%',
+                        }}
+                      >
+                        <RealTerminal id={term.id} />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Right Pane (Split Terminal) */}
+                  {isSplit && splitActiveId && (
+                    <div style={{ flex: 1, minWidth: 0, height: '100%' }}>
+                      {terminals.map((term) => (
+                        <div
+                          key={term.id}
+                          style={{
+                            display: splitActiveId === term.id ? 'block' : 'none',
+                            height: '100%',
+                          }}
+                        >
+                          <RealTerminal id={term.id} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
             )}
 
             {/* PROBLEMS */}
@@ -347,3 +469,14 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
     </section>
   );
 }
+
+const iconBtnStyle: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  padding: '4px',
+  cursor: 'pointer',
+  color: '#4b5563',
+  borderRadius: '4px',
+  display: 'flex',
+  transition: 'color 100ms',
+};

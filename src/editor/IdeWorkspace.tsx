@@ -10,6 +10,7 @@ import { CommandPalette } from './components/CommandPalette';
 import { AIAssistantPanel } from './components/AIAssistantPanel';
 import { TitleBar } from './components/TitleBar';
 import { useIdeLayoutStore } from '@/store/useIdeLayoutStore';
+import { useFileSystemStore } from '@/store/useFileSystemStore';
 
 // ── Drag-resize handle ─────────────────────────────────────────────────────
 function ResizeHandle({
@@ -84,6 +85,12 @@ export function IdeWorkspace() {
     sidebarCollapsed,
     setSidebarCollapsed,
   } = useIdeLayoutStore();
+
+  const loadWorkspaceRoot = useFileSystemStore((s) => s.loadWorkspaceRoot);
+
+  useEffect(() => {
+    void loadWorkspaceRoot().catch(() => undefined);
+  }, [loadWorkspaceRoot]);
 
   // Global shortcuts
   useEffect(() => {

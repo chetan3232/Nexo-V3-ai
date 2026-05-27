@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import {
-  streamNvidiaResponse,
+  streamAIResponse,
   NVIDIA_MODELS,
   DEFAULT_MODEL,
   ChatMessage as ApiMessage,
@@ -81,7 +81,7 @@ export const useChatStore = create<ChatState>()(
           })),
         ];
 
-        await streamNvidiaResponse(history, model, {
+        await streamAIResponse(history, model, {
           onToken: (chunk) => {
             set((state) => ({
               messages: state.messages.map((m) =>

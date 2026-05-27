@@ -1,9 +1,10 @@
-import { useMemo, useState, useRef, useCallback } from 'react';
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import Editor, { Monaco } from '@monaco-editor/react';
-import { Save, SplitSquareHorizontal, FileCode2, Wand2, X, Send } from 'lucide-react';
+import { Save, SplitSquareHorizontal, FileCode2, Wand2, X, Send, Settings } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useChatStore } from '@/store/useChatStore';
-import { streamNvidiaResponse } from '@/services/aiStreamClient';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { streamAIResponse, streamNvidiaResponse } from '@/services/aiStreamClient';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function defineNexoTheme(monaco: Monaco) {
@@ -115,6 +116,12 @@ export function CodeEditor() {
   const active = activeFile ? files[activeFile] : null;
   const split  = splitFile  ? files[splitFile]  : null;
 
+  // Custom Persisted Settings
+  const {
+    autoSave, fontSize, wordWrap, minimapEnabled,
+    setAutoSave, setFontSize, setWordWrap, setMinimapEnabled
+  } = useSettingsStore();
+
   // Floating Inline AI state
   const [inlineAIActive, setInlineAIActive] = useState(false);
   const [inlineAIPosition, setInlineAIPosition] = useState<{ top: number; left: number } | null>(null);
@@ -123,8 +130,34 @@ export function CodeEditor() {
   const [inlineAISubmitting, setInlineAISubmitting] = useState(false);
   const [inlineAIError, setInlineAIError] = useState<string | null>(null);
 
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [editorInstance, setEditorInstance] = useState<any>(null);
   const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
+  const saveTimeoutRef = useRef<any>(null);
+
+  // Debounced auto-save triggers
+  const handleContentChange = (val: string | undefined) => {
+    if (!active) return;
+    updateFileContent(active.path, val ?? '');
+
+    if (autoSave) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        saveFile(active.path);
+      }, 1000); // 1000ms debounce save
+    }
+  };
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const triggerInlineAI = useCallback((editor: any, monaco: Monaco) => {
     const selection = editor.getSelection();
@@ -168,7 +201,10 @@ export function CodeEditor() {
     setEditorInstance(editor);
     setMonacoInstance(monaco);
 
-    // Register Ctrl/Cmd + K shortcut
+    // Set monaco globally so other components (like AI context engines) can query error diagnostics
+    (window as any).monaco = monaco;
+
+    // Register Ctrl/Cmd + K shortcut for inline AI panel
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => {
       triggerInlineAI(editor, monaco);
     });
@@ -180,6 +216,139 @@ export function CodeEditor() {
         useEditorStore.getState().saveFile(activePath);
       }
     });
+
+    // ── 1. Register Custom Right-Click Context Menu AI Actions ─────────────────
+    editor.addAction({
+      id: 'nexo-explain-selection',
+      label: 'Nexo AI: Explain selection',
+      contextMenuOrder: 1,
+      contextMenuGroupId: 'navigation',
+      run: (ed: any) => {
+        const selectionText = ed.getModel()?.getValueInRange(ed.getSelection()) ?? '';
+        if (selectionText) {
+          useChatStore.getState().setInput(`Explain this selected code:\n\`\`\`\n${selectionText}\n\`\`\``);
+        }
+      }
+    });
+
+    editor.addAction({
+      id: 'nexo-optimize-performance',
+      label: 'Nexo AI: Optimize performance',
+      contextMenuOrder: 2,
+      contextMenuGroupId: 'navigation',
+      run: (ed: any) => {
+        const selectionText = ed.getModel()?.getValueInRange(ed.getSelection()) ?? '';
+        if (selectionText) {
+          useChatStore.getState().setInput(`Optimize this selected code for better performance, memory footprint, and CPU execution:\n\`\`\`\n${selectionText}\n\`\`\``);
+        }
+      }
+    });
+
+    editor.addAction({
+      id: 'nexo-document-code',
+      label: 'Nexo AI: Document code',
+      contextMenuOrder: 3,
+      contextMenuGroupId: 'navigation',
+      run: (ed: any) => {
+        const selectionText = ed.getModel()?.getValueInRange(ed.getSelection()) ?? '';
+        if (selectionText) {
+          useChatStore.getState().setInput(`Add high-quality comments, JSDoc/docstrings, and clear developer documentation to this code:\n\`\`\`\n${selectionText}\n\`\`\``);
+        }
+      }
+    });
+
+    // ── 2. Register Debounced Monaco Inline AI Ghost Text Autocomplete ─────────
+    let autocompleteTimer: any = null;
+
+    const nexoInlineProvider = {
+      provideInlineCompletions: async (model: any, position: any, context: any, token: any) => {
+        if (autocompleteTimer) clearTimeout(autocompleteTimer);
+
+        const lineContent = model.getLineContent(position.lineNumber);
+        const prefix = lineContent.substring(0, position.column - 1);
+
+        // Only query if user typed at least 3 characters on this active line
+        if (prefix.trim().length < 3) {
+          return { items: [] };
+        }
+
+        return new Promise((resolve) => {
+          autocompleteTimer = setTimeout(async () => {
+            if (token.isCancellationRequested) {
+              resolve({ items: [] });
+              return;
+            }
+
+            try {
+              const offset = model.getOffsetAt(position);
+              const text = model.getValue();
+              const beforeContext = text.substring(Math.max(0, offset - 1200), offset);
+
+              const prompt = `You are a high-speed inline code autocompletion engine inside an AI-native IDE.
+Complete the code immediately following the cursor.
+Output ONLY the continuation of the code.
+- Do NOT include markdown code fences (like \`\`\`js).
+- Do NOT include conversational explanations or chat comments.
+- Do NOT repeat the prefix code that is already there.
+
+CODE CONTEXT BEFORE CURSOR:
+${beforeContext}
+
+CONTINUATION:`;
+
+              let completionText = '';
+              await streamAIResponse(
+                [{ role: 'user', content: prompt }],
+                'nexo-auto-router', // Route automatically to cheap model (Nemotron Nano / OpenAI Mini / Claude Haiku / local Ollama)
+                {
+                  onToken: (token) => {
+                    completionText += token;
+                  },
+                  onDone: () => {
+                    // Clean markdown and duplicate prefixes
+                    completionText = completionText.replace(/^```(\w+)?\n/, '').replace(/```$/, '');
+                    if (completionText.startsWith(prefix)) {
+                      completionText = completionText.substring(prefix.length);
+                    }
+
+                    resolve({
+                      items: [
+                        {
+                          insertText: completionText,
+                          range: new monaco.Range(
+                            position.lineNumber,
+                            position.column,
+                            position.lineNumber,
+                            position.column
+                          ),
+                        },
+                      ],
+                    });
+                  },
+                  onError: () => {
+                    resolve({ items: [] });
+                  }
+                },
+                { temperature: 0.1, maxTokens: 48 }
+              );
+            } catch (e) {
+              resolve({ items: [] });
+            }
+          }, 600); // 600ms debounce
+        });
+      },
+      freeInlineCompletions: () => {},
+    };
+
+    if (!(window as any).nexoInlineProviderRegistered) {
+      (window as any).nexoInlineProviderRegistered = true;
+      const languages = ['typescript', 'javascript', 'python', 'html', 'css', 'json', 'markdown', 'plaintext'];
+      languages.forEach((lang) => {
+        try {
+          monaco.languages.registerInlineCompletionsProvider(lang, nexoInlineProvider);
+        } catch (e) {}
+      });
+    }
   };
 
   const submitInlineAI = async () => {
@@ -214,7 +383,7 @@ Only return the replacement code.`;
     );
 
     try {
-      await streamNvidiaResponse(messages, model, {
+      await streamAIResponse(messages, model, {
         onToken: (chunk) => {
           accumulatedText += chunk;
 
@@ -260,8 +429,8 @@ Only return the replacement code.`;
   };
 
   const editorOptions = useMemo(() => ({
-    minimap:                    { enabled: true, scale: 1, renderCharacters: false },
-    fontSize:                   13.5,
+    minimap:                    { enabled: minimapEnabled, scale: 1, renderCharacters: false },
+    fontSize:                   fontSize,
     fontFamily:                 "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
     fontLigatures:              true,
     lineHeight:                 22,
@@ -272,7 +441,7 @@ Only return the replacement code.`;
     suggestOnTriggerCharacters: true,
     quickSuggestions:           true,
     inlineSuggest:              { enabled: true },
-    wordWrap:                   'off' as const,
+    wordWrap:                   wordWrap,
     scrollBeyondLastLine:       false,
     renderLineHighlight:        'line' as const,
     padding:                    { top: 10, bottom: 10 },
@@ -291,7 +460,7 @@ Only return the replacement code.`;
       verticalScrollbarSize: 6,
       horizontalScrollbarSize: 6,
     },
-  }), []);
+  }), [fontSize, wordWrap, minimapEnabled]);
 
   if (!active) return <EmptyState />;
 
@@ -301,7 +470,7 @@ Only return the replacement code.`;
   const iconColor = getBreadcrumbIcon(fileName);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0d1117' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0d1117', position: 'relative' }}>
       {/* ── Breadcrumb bar ── */}
       <div style={{
         display: 'flex',
@@ -345,26 +514,38 @@ Only return the replacement code.`;
 
         {/* Editor actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          {/* Split Screen */}
           <button
             onClick={toggleSplitFile}
             title="Split Editor"
-            style={{
-              background: 'none', border: 'none', padding: '4px', cursor: 'pointer',
-              color: '#4b5563', borderRadius: '4px', display: 'flex',
-              transition: 'color 100ms',
-            }}
+            style={actionBtnStyle}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
           >
             <SplitSquareHorizontal size={14} />
           </button>
+          
+          {/* Editor Settings Cog */}
+          <button
+            onClick={() => setSettingsOpen((o) => !o)}
+            title="Editor Settings"
+            style={{
+              ...actionBtnStyle,
+              color: settingsOpen ? '#3b82f6' : '#4b5563',
+            }}
+            onMouseEnter={(e) => { if (!settingsOpen) (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
+            onMouseLeave={(e) => { if (!settingsOpen) (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
+          >
+            <Settings size={14} />
+          </button>
+
+          {/* Manual Save */}
           <button
             onClick={() => saveFile(active.path)}
             title="Save (Ctrl+S)"
             style={{
-              background: 'none', border: 'none', padding: '4px', cursor: 'pointer',
+              ...actionBtnStyle,
               color: isDirty(active.path) ? '#3b82f6' : '#4b5563',
-              borderRadius: '4px', display: 'flex', transition: 'color 100ms',
             }}
           >
             <Save size={14} />
@@ -389,7 +570,7 @@ Only return the replacement code.`;
           onMount={handleEditorMount}
           theme="nexo-dark"
           options={editorOptions}
-          onChange={(v) => updateFileContent(active.path, v ?? '')}
+          onChange={handleContentChange}
         />
 
         {split && (
@@ -510,7 +691,104 @@ Only return the replacement code.`;
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* ── Interactive Settings Floating Panel ── */}
+        <AnimatePresence>
+          {settingsOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -4 }}
+              transition={{ duration: 0.12 }}
+              style={{
+                position: 'absolute',
+                top: '32px',
+                right: '12px',
+                width: '220px',
+                background: 'rgba(17, 24, 39, 0.92)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid #1f2937',
+                borderRadius: '8px',
+                boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
+                padding: '12px',
+                zIndex: 1010,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              <div style={{ fontSize: '10px', fontWeight: 700, color: '#4b5563', letterSpacing: '0.08em', borderBottom: '1px solid #1f2937', paddingBottom: '6px' }}>EDITOR CONFIG</div>
+
+              {/* Toggle Auto Save */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: '#c9d1d9' }}>
+                <span>Auto Save</span>
+                <input
+                  type="checkbox"
+                  checked={autoSave}
+                  onChange={(e) => setAutoSave(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+              </div>
+
+              {/* Change Font Size */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: '#c9d1d9' }}>
+                <span>Font Size</span>
+                <select
+                  value={fontSize}
+                  onChange={(e) => setFontSize(Number(e.target.value))}
+                  style={{
+                    background: '#0d1117',
+                    border: '1px solid #1f2937',
+                    color: '#c9d1d9',
+                    fontSize: '11px',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    outline: 'none',
+                  }}
+                >
+                  {[12, 13, 14, 15, 16].map((sz) => (
+                    <option key={sz} value={sz}>{sz}px</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Toggle Word Wrap */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: '#c9d1d9' }}>
+                <span>Word Wrap</span>
+                <input
+                  type="checkbox"
+                  checked={wordWrap === 'on'}
+                  onChange={(e) => setWordWrap(e.target.checked ? 'on' : 'off')}
+                  style={{ cursor: 'pointer' }}
+                />
+              </div>
+
+              {/* Toggle Minimap */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: '#c9d1d9' }}>
+                <span>Minimap</span>
+                <input
+                  type="checkbox"
+                  checked={minimapEnabled}
+                  onChange={(e) => setMinimapEnabled(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
 }
+
+const actionBtnStyle: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  padding: '4px',
+  cursor: 'pointer',
+  color: '#4b5563',
+  borderRadius: '4px',
+  display: 'flex',
+  transition: 'color 100ms',
+};
