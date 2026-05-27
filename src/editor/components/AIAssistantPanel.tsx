@@ -57,8 +57,19 @@ export function AIAssistantPanel({ onClose }: Props) {
     ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
   }, [input]);
 
-  // Fetch flat file tree for file mentions
-  const flatPaths = useFileSystemStore((s) => s.flattenPaths());
+  const tree = useFileSystemStore((s) => s.tree);
+  const flatPaths = useMemo(() => {
+    const paths: string[] = [];
+    const walk = (nodes: any[]) => {
+      nodes.forEach((node) => {
+        if (node.type === 'file') paths.push(node.path);
+        if (node.children) walk(node.children);
+      });
+    };
+    walk(tree);
+    return paths;
+  }, [tree]);
+
   const filteredPaths = useMemo(() => {
     if (!mentionActive) return [];
     const q = mentionQuery.toLowerCase();
@@ -201,7 +212,7 @@ export function AIAssistantPanel({ onClose }: Props) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#111827', borderLeft: '1px solid #1f2937', position: 'relative' }}>
 
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', padding: '10px 14px 0', flexShrink: 0, justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 14px 0', flexShrink: 0, justifyContent: 'space-between' }}>
         <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.1em', color: '#e2e8f0' }}>NEXO AI</span>
         <div style={{ display: 'flex', gap: '2px' }}>
           <button onClick={clearChat} title="Clear chat" style={iconBtnStyle}>

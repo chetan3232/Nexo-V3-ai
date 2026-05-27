@@ -1,10 +1,18 @@
-// ── NVIDIA NIM API — OpenAI-compatible streaming client ───────────────────
+// ── Unified Multi-Model AI Streaming Client ─────────────────────────────────
 //
-// CORS strategy:
-//  • Dev (Vite)      : requests go to /api/nvidia/* which Vite proxies to NVIDIA
-//  • Electron prod   : requests bypass CORS via Electron session (main.cjs)
-//  • Browser prod    : uses proxy path
+// Supports:
+//  • NVIDIA NIM (default/fallback)
+//  • OpenAI
+//  • Claude (Anthropic)
+//  • Gemini (Google)
+//  • OpenRouter
+//  • Ollama (Local)
+//  • DeepSeek
 //
+// Dynamic Routing is supported via 'nexo-auto-router'.
+// CORS bypasses are set up securely via Electron's main process.
+//
+
 const IS_ELECTRON = typeof window !== 'undefined' && !!(window as any).nexoDesktop;
 const IS_DEV      = typeof window !== 'undefined' && (location.hostname === 'localhost' || location.protocol === 'file:');
 
@@ -14,31 +22,67 @@ const NVIDIA_BASE = (IS_ELECTRON || !IS_DEV)
   ? 'https://integrate.api.nvidia.com/v1'
   : '/api/nvidia';
 
-const getNvidiaKey = () => {
-  // 1. Try to read from Electron preload bridge (highest security)
+// ── Secure Credential Retrievers ──────────────────────────────────────────
+export const getNvidiaKey = () => {
   if (typeof window !== 'undefined' && (window as any).nexoDesktop?.getNvidiaKey) {
     const key = (window as any).nexoDesktop.getNvidiaKey();
     if (key) return key;
   }
-  // 2. Fall back to Vite environment variables
   return ((import.meta as any).env?.VITE_NVIDIA_API_KEY as string) || '';
 };
 
-const NVIDIA_KEY  = getNvidiaKey();
+export const getOpenaiKey = () => {
+  if (typeof window !== 'undefined' && (window as any).nexoDesktop?.getOpenaiKey) {
+    const key = (window as any).nexoDesktop.getOpenaiKey();
+    if (key) return key;
+  }
+  return ((import.meta as any).env?.VITE_OPENAI_API_KEY as string) || '';
+};
 
+export const getClaudeKey = () => {
+  if (typeof window !== 'undefined' && (window as any).nexoDesktop?.getClaudeKey) {
+    const key = (window as any).nexoDesktop.getClaudeKey();
+    if (key) return key;
+  }
+  return ((import.meta as any).env?.VITE_CLAUDE_API_KEY as string) || '';
+};
+
+export const getGeminiKey = () => {
+  if (typeof window !== 'undefined' && (window as any).nexoDesktop?.getGeminiKey) {
+    const key = (window as any).nexoDesktop.getGeminiKey();
+    if (key) return key;
+  }
+  return ((import.meta as any).env?.VITE_GEMINI_API_KEY as string) || '';
+};
+
+export const getOpenrouterKey = () => {
+  if (typeof window !== 'undefined' && (window as any).nexoDesktop?.getOpenrouterKey) {
+    const key = (window as any).nexoDesktop.getOpenrouterKey();
+    if (key) return key;
+  }
+  return ((import.meta as any).env?.VITE_OPENROUTER_API_KEY as string) || '';
+};
+
+export const getDeepseekKey = () => {
+  if (typeof window !== 'undefined' && (window as any).nexoDesktop?.getDeepseekKey) {
+    const key = (window as any).nexoDesktop.getDeepseekKey();
+    if (key) return key;
+  }
+  return ((import.meta as any).env?.VITE_DEEPSEEK_API_KEY as string) || '';
+};
+
+// ── Types ─────────────────────────────────────────────────────────────────
 export type StreamHandlers = {
   onToken: (token: string) => void;
   onDone:  () => void;
   onError: (error: Error) => void;
 };
 
-// Chat message format (OpenAI-compatible)
 export type ChatMessage = {
   role: 'system' | 'user' | 'assistant';
   content: string;
 };
 
-// ── Curated model list from NVIDIA NIM (fetched 2026-05-27) ──────────────
 export type ModelCategory = 'coding' | 'reasoning' | 'general' | 'vision' | 'mini';
 
 export type NvidiaModel = {
@@ -49,91 +93,554 @@ export type NvidiaModel = {
   contextK?: number;
 };
 
+// ── Curated Model Directory ───────────────────────────────────────────────
 export const NVIDIA_MODELS: NvidiaModel[] = [
-  // ── Coding ──
-  { id: 'qwen/qwen3-coder-480b-a35b-instruct',    label: 'Qwen3 Coder 480B',         provider: 'Qwen',       category: 'coding',    contextK: 128 },
-  { id: 'ibm/granite-34b-code-instruct',           label: 'Granite 34B Code',         provider: 'IBM',        category: 'coding',    contextK: 8   },
-  { id: 'ibm/granite-8b-code-instruct',            label: 'Granite 8B Code',          provider: 'IBM',        category: 'coding',    contextK: 8   },
-  { id: 'bigcode/starcoder2-15b',                  label: 'StarCoder2 15B',           provider: 'BigCode',    category: 'coding',    contextK: 16  },
-  { id: 'meta/codellama-70b',                      label: 'Code Llama 70B',           provider: 'Meta',       category: 'coding',    contextK: 100 },
-  { id: 'mistralai/codestral-22b-instruct-v0.1',   label: 'Codestral 22B',            provider: 'Mistral',    category: 'coding',    contextK: 32  },
-  { id: 'deepseek-ai/deepseek-coder-6.7b-instruct',label: 'DeepSeek Coder 6.7B',      provider: 'DeepSeek',   category: 'coding',    contextK: 16  },
+  // ── Auto Router ──
+  { id: 'nexo-auto-router',                        label: '✦ Nexo Auto Router',       provider: 'Nexo AI',    category: 'reasoning', contextK: 128 },
 
-  // ── Reasoning / Flagship ──
-  { id: 'nvidia/llama-3.1-nemotron-ultra-253b-v1', label: 'Nemotron Ultra 253B',      provider: 'NVIDIA',     category: 'reasoning', contextK: 128 },
-  { id: 'nvidia/llama-3.3-nemotron-super-49b-v1.5',label: 'Nemotron Super 49B',       provider: 'NVIDIA',     category: 'reasoning', contextK: 128 },
-  { id: 'nvidia/llama-3.3-nemotron-super-49b-v1',  label: 'Nemotron Super 49B v1',    provider: 'NVIDIA',     category: 'reasoning', contextK: 128 },
-  { id: 'nvidia/llama-3.1-nemotron-70b-instruct',  label: 'Nemotron 70B',             provider: 'NVIDIA',     category: 'reasoning', contextK: 128 },
-  { id: 'deepseek-ai/deepseek-v4-pro',             label: 'DeepSeek V4 Pro',          provider: 'DeepSeek',   category: 'reasoning', contextK: 64  },
-  { id: 'deepseek-ai/deepseek-v4-flash',           label: 'DeepSeek V4 Flash',        provider: 'DeepSeek',   category: 'reasoning', contextK: 64  },
-  { id: 'moonshotai/kimi-k2.6',                    label: 'Kimi K2.6',                provider: 'Moonshot',   category: 'reasoning', contextK: 128 },
-  { id: 'minimaxai/minimax-m2.7',                  label: 'MiniMax M2.7',             provider: 'MiniMax',    category: 'reasoning', contextK: 32  },
-  { id: 'qwen/qwen3.5-397b-a17b',                  label: 'Qwen3.5 397B',             provider: 'Qwen',       category: 'reasoning', contextK: 32  },
-  { id: 'qwen/qwen3.5-122b-a10b',                  label: 'Qwen3.5 122B',             provider: 'Qwen',       category: 'reasoning', contextK: 32  },
-  { id: 'openai/gpt-oss-120b',                     label: 'GPT OSS 120B',             provider: 'OpenAI',     category: 'reasoning', contextK: 128 },
-  { id: 'z-ai/glm-5.1',                            label: 'GLM 5.1',                  provider: 'ZAI',        category: 'reasoning', contextK: 32  },
-  { id: 'stepfun-ai/step-3.5-flash',               label: 'Step 3.5 Flash',           provider: 'StepFun',    category: 'reasoning', contextK: 32  },
-  { id: 'nvidia/nemotron-3-super-120b-a12b',       label: 'Nemotron Super 120B',      provider: 'NVIDIA',     category: 'reasoning', contextK: 32  },
+  // ── Claude (Anthropic) ──
+  { id: 'claude/claude-3-5-sonnet-latest',         label: 'Claude 3.5 Sonnet',        provider: 'Claude',     category: 'coding',    contextK: 200 },
+  { id: 'claude/claude-3-5-haiku-latest',          label: 'Claude 3.5 Haiku',         provider: 'Claude',     category: 'mini',      contextK: 200 },
+  { id: 'claude/claude-3-opus-latest',             label: 'Claude 3 Opus',            provider: 'Claude',     category: 'reasoning', contextK: 200 },
 
-  // ── General / Instruction ──
-  { id: 'meta/llama-4-maverick-17b-128e-instruct', label: 'Llama 4 Maverick 17B',     provider: 'Meta',       category: 'general',   contextK: 128 },
-  { id: 'meta/llama-3.3-70b-instruct',             label: 'Llama 3.3 70B',            provider: 'Meta',       category: 'general',   contextK: 128 },
-  { id: 'meta/llama-3.1-70b-instruct',             label: 'Llama 3.1 70B',            provider: 'Meta',       category: 'general',   contextK: 128 },
-  { id: 'meta/llama-3.1-8b-instruct',              label: 'Llama 3.1 8B',             provider: 'Meta',       category: 'general',   contextK: 128 },
-  { id: 'mistralai/mistral-large-3-675b-instruct-2512', label: 'Mistral Large 3 675B',provider: 'Mistral',    category: 'general',   contextK: 128 },
-  { id: 'mistralai/mistral-large-2-instruct',      label: 'Mistral Large 2',          provider: 'Mistral',    category: 'general',   contextK: 128 },
-  { id: 'mistralai/mistral-medium-3.5-128b',       label: 'Mistral Medium 3.5 128B',  provider: 'Mistral',    category: 'general',   contextK: 128 },
-  { id: 'mistralai/mistral-small-4-119b-2603',     label: 'Mistral Small 4 119B',     provider: 'Mistral',    category: 'general',   contextK: 32  },
-  { id: 'mistralai/mixtral-8x22b-v0.1',            label: 'Mixtral 8×22B',            provider: 'Mistral',    category: 'general',   contextK: 64  },
-  { id: 'mistralai/mixtral-8x7b-instruct-v0.1',    label: 'Mixtral 8×7B',             provider: 'Mistral',    category: 'general',   contextK: 32  },
-  { id: 'google/gemma-4-31b-it',                   label: 'Gemma 4 31B',              provider: 'Google',     category: 'general',   contextK: 128 },
-  { id: 'google/gemma-3-12b-it',                   label: 'Gemma 3 12B',              provider: 'Google',     category: 'general',   contextK: 128 },
-  { id: 'ai21labs/jamba-1.5-large-instruct',       label: 'Jamba 1.5 Large',          provider: 'AI21',       category: 'general',   contextK: 256 },
-  { id: 'databricks/dbrx-instruct',                label: 'DBRX Instruct',            provider: 'Databricks', category: 'general',   contextK: 32  },
-  { id: 'mistralai/mistral-nemotron',              label: 'Mistral Nemotron',         provider: 'Mistral',    category: 'general',   contextK: 128 },
-  { id: 'mistralai/ministral-14b-instruct-2512',   label: 'Ministral 14B',            provider: 'Mistral',    category: 'general',   contextK: 32  },
-  { id: 'writer/palmyra-creative-122b',            label: 'Palmyra Creative 122B',    provider: 'Writer',     category: 'general',   contextK: 32  },
-  { id: '01-ai/yi-large',                          label: 'Yi Large',                 provider: '01.AI',      category: 'general',   contextK: 32  },
-  { id: 'qwen/qwen3-next-80b-a3b-instruct',        label: 'Qwen3 Next 80B',           provider: 'Qwen',       category: 'general',   contextK: 32  },
-  { id: 'bytedance/seed-oss-36b-instruct',         label: 'SEED OSS 36B',             provider: 'ByteDance',  category: 'general',   contextK: 32  },
+  // ── Gemini (Google) ──
+  { id: 'gemini/gemini-2.0-flash-thinking-exp',    label: 'Gemini 2.0 Thinking',      provider: 'Gemini',     category: 'reasoning', contextK: 1048 },
+  { id: 'gemini/gemini-1.5-pro',                   label: 'Gemini 1.5 Pro',           provider: 'Gemini',     category: 'coding',    contextK: 2096 },
+  { id: 'gemini/gemini-2.0-flash',                 label: 'Gemini 2.0 Flash',         provider: 'Gemini',     category: 'general',   contextK: 1048 },
 
-  // ── Vision ──
-  { id: 'meta/llama-3.2-90b-vision-instruct',      label: 'Llama 3.2 90B Vision',    provider: 'Meta',       category: 'vision',    contextK: 128 },
-  { id: 'meta/llama-3.2-11b-vision-instruct',      label: 'Llama 3.2 11B Vision',    provider: 'Meta',       category: 'vision',    contextK: 128 },
-  { id: 'microsoft/phi-4-multimodal-instruct',     label: 'Phi-4 Multimodal',        provider: 'Microsoft',  category: 'vision',    contextK: 128 },
-  { id: 'nvidia/llama-3.1-nemotron-nano-vl-8b-v1', label: 'Nemotron Nano VL 8B',     provider: 'NVIDIA',     category: 'vision',    contextK: 32  },
-  { id: 'nvidia/nemotron-nano-12b-v2-vl',          label: 'Nemotron Nano 12B VL',    provider: 'NVIDIA',     category: 'vision',    contextK: 32  },
-  { id: 'google/gemma-3n-e4b-it',                  label: 'Gemma 3n E4B',            provider: 'Google',     category: 'vision',    contextK: 32  },
+  // ── OpenAI ──
+  { id: 'openai/gpt-4o',                           label: 'GPT-4o',                   provider: 'OpenAI',     category: 'coding',    contextK: 128 },
+  { id: 'openai/gpt-4o-mini',                      label: 'GPT-4o Mini',              provider: 'OpenAI',     category: 'mini',      contextK: 128 },
+  { id: 'openai/o1-mini',                          label: 'o1-mini',                  provider: 'OpenAI',     category: 'reasoning', contextK: 128 },
+  { id: 'openai/o3-mini',                          label: 'o3-mini',                  provider: 'OpenAI',     category: 'reasoning', contextK: 200 },
 
-  // ── Mini / Fast ──
-  { id: 'nvidia/llama-3.1-nemotron-nano-8b-v1',    label: 'Nemotron Nano 8B',        provider: 'NVIDIA',     category: 'mini',      contextK: 128 },
-  { id: 'microsoft/phi-4-mini-instruct',           label: 'Phi-4 Mini',              provider: 'Microsoft',  category: 'mini',      contextK: 128 },
-  { id: 'microsoft/phi-3.5-moe-instruct',          label: 'Phi-3.5 MoE',            provider: 'Microsoft',  category: 'mini',      contextK: 128 },
-  { id: 'google/gemma-3-4b-it',                    label: 'Gemma 3 4B',              provider: 'Google',     category: 'mini',      contextK: 32  },
-  { id: 'google/gemma-2-2b-it',                    label: 'Gemma 2 2B',              provider: 'Google',     category: 'mini',      contextK: 8   },
-  { id: 'meta/llama-3.2-3b-instruct',              label: 'Llama 3.2 3B',            provider: 'Meta',       category: 'mini',      contextK: 128 },
-  { id: 'meta/llama-3.2-1b-instruct',              label: 'Llama 3.2 1B',            provider: 'Meta',       category: 'mini',      contextK: 128 },
-  { id: 'nvidia/nemotron-mini-4b-instruct',        label: 'Nemotron Mini 4B',        provider: 'NVIDIA',     category: 'mini',      contextK: 4   },
-  { id: 'openai/gpt-oss-20b',                      label: 'GPT OSS 20B',             provider: 'OpenAI',     category: 'mini',      contextK: 128 },
-  { id: 'nv-mistralai/mistral-nemo-12b-instruct',  label: 'Mistral Nemo 12B',        provider: 'NVIDIA×Mistral', category: 'mini', contextK: 128 },
-  { id: 'nvidia/mistral-nemo-minitron-8b-8k-instruct', label: 'Minitron 8B',         provider: 'NVIDIA',     category: 'mini',      contextK: 8   },
+  // ── DeepSeek ──
+  { id: 'deepseek/deepseek-chat',                  label: 'DeepSeek V3',              provider: 'DeepSeek',   category: 'coding',    contextK: 64 },
+  { id: 'deepseek/deepseek-reasoner',              label: 'DeepSeek R1 (Reasoner)',   provider: 'DeepSeek',   category: 'reasoning', contextK: 64 },
+
+  // ── OpenRouter ──
+  { id: 'openrouter/anthropic/claude-3.5-sonnet',  label: 'Claude 3.5 Sonnet (OR)',   provider: 'OpenRouter', category: 'coding',    contextK: 200 },
+  { id: 'openrouter/meta/llama-3.3-70b-instruct',  label: 'Llama 3.3 70B (OR)',       provider: 'OpenRouter', category: 'general',   contextK: 128 },
+  { id: 'openrouter/deepseek/deepseek-r1',         label: 'DeepSeek R1 (OR)',         provider: 'OpenRouter', category: 'reasoning', contextK: 128 },
+
+  // ── Local Ollama ──
+  { id: 'ollama/llama3',                           label: 'Llama 3 (Local)',          provider: 'Ollama',     category: 'general',   contextK: 8 },
+  { id: 'ollama/qwen2.5-coder',                    label: 'Qwen 2.5 Coder (Local)',   provider: 'Ollama',     category: 'coding',    contextK: 16 },
+  { id: 'ollama/deepseek-r1',                      label: 'DeepSeek R1 (Local)',      provider: 'Ollama',     category: 'reasoning', contextK: 8 },
+
+  // ── NVIDIA NIM (Direct Coding / Reasoning) ──
+  { id: 'qwen/qwen3-coder-480b-a35b-instruct',    label: 'Qwen3 Coder 480B (NIM)',   provider: 'NVIDIA',     category: 'coding',    contextK: 128 },
+  { id: 'nvidia/llama-3.1-nemotron-nano-8b-v1',    label: 'Nemotron Nano 8B (NIM)',   provider: 'NVIDIA',     category: 'mini',      contextK: 128 },
+  { id: 'nvidia/llama-3.3-nemotron-super-49b-v1.5',label: 'Nemotron Super 49B (NIM)', provider: 'NVIDIA',     category: 'reasoning', contextK: 128 },
+  { id: 'nvidia/llama-3.1-nemotron-70b-instruct',  label: 'Nemotron 70B (NIM)',        provider: 'NVIDIA',     category: 'reasoning', contextK: 128 },
+  { id: 'mistralai/codestral-22b-instruct-v0.1',   label: 'Codestral 22B (NIM)',       provider: 'Mistral',    category: 'coding',    contextK: 32  },
 ];
 
-// Default model
-export const DEFAULT_MODEL = NVIDIA_MODELS[0].id; // qwen3-coder-480b
+export const DEFAULT_MODEL = 'nexo-auto-router';
 
-// ── NVIDIA NIM streaming (OpenAI-compatible SSE) ──────────────────────────
-export async function streamNvidiaResponse(
+// ── Provider Resolver ──────────────────────────────────────────────────────
+export function getProviderForModel(modelId: string): 'OpenAI' | 'Claude' | 'Gemini' | 'OpenRouter' | 'Ollama' | 'DeepSeek' | 'NVIDIA' {
+  if (modelId.startsWith('openai/')) return 'OpenAI';
+  if (modelId.startsWith('claude/') || modelId.startsWith('anthropic/')) return 'Claude';
+  if (modelId.startsWith('gemini/')) return 'Gemini';
+  if (modelId.startsWith('openrouter/')) return 'OpenRouter';
+  if (modelId.startsWith('ollama/')) return 'Ollama';
+  if (modelId.startsWith('deepseek/')) return 'DeepSeek';
+  return 'NVIDIA';
+}
+
+// ── Smart Task Classifier ──────────────────────────────────────────────────
+export function detectTaskType(messages: ChatMessage[]): 'cheap' | 'coding' | 'reasoning' | 'general' {
+  const lastMessage = messages[messages.length - 1]?.content ?? '';
+  const lowercase = lastMessage.toLowerCase();
+
+  if (lowercase.includes('inline code autocompletion') || lowercase.includes('continuation:') || lowercase.includes('ghost text')) {
+    return 'cheap';
+  }
+  if (lowercase.includes('refactor') || lowercase.includes('generate component') || lowercase.includes('document code') || lowercase.includes('write a code') || lowercase.includes('fix bug') || lowercase.includes('edit the provided code')) {
+    return 'coding';
+  }
+  if (lowercase.includes('plan') || lowercase.includes('reason') || lowercase.includes('agent') || lowercase.includes('architect') || lowercase.includes('solve this complex')) {
+    return 'reasoning';
+  }
+  return 'general';
+}
+
+// ── Auto Model Router ─────────────────────────────────────────────────────
+export function routeModelAutomatically(taskType: 'cheap' | 'coding' | 'reasoning' | 'general'): string {
+  const hasClaude = !!getClaudeKey();
+  const hasGemini = !!getGeminiKey();
+  const hasNvidia = !!getNvidiaKey();
+  const hasOpenai = !!getOpenaiKey();
+  const hasDeepseek = !!getDeepseekKey();
+  const hasOpenrouter = !!getOpenrouterKey();
+
+  if (taskType === 'cheap') {
+    if (hasNvidia) return 'nvidia/llama-3.1-nemotron-nano-8b-v1';
+    if (hasOpenai) return 'openai/gpt-4o-mini';
+    if (hasClaude) return 'claude/claude-3-5-haiku-latest';
+    return 'ollama/llama3'; // Local fallback
+  }
+
+  if (taskType === 'coding') {
+    if (hasClaude) return 'claude/claude-3-5-sonnet-latest';
+    if (hasDeepseek) return 'deepseek/deepseek-chat';
+    if (hasOpenrouter) return 'openrouter/anthropic/claude-3.5-sonnet';
+    if (hasNvidia) return 'qwen/qwen3-coder-480b-a35b-instruct';
+    if (hasOpenai) return 'openai/gpt-4o';
+    if (hasGemini) return 'gemini/gemini-1.5-pro';
+    return 'ollama/qwen2.5-coder'; // Local fallback
+  }
+
+  if (taskType === 'reasoning') {
+    if (hasGemini) return 'gemini/gemini-2.0-flash-thinking-exp';
+    if (hasDeepseek) return 'deepseek/deepseek-reasoner';
+    if (hasOpenai) return 'openai/o1-mini';
+    if (hasClaude) return 'claude/claude-3-opus-latest';
+    return 'ollama/deepseek-r1'; // Local fallback
+  }
+
+  // General fallback
+  if (hasClaude) return 'claude/claude-3-5-sonnet-latest';
+  if (hasGemini) return 'gemini/gemini-2.0-flash';
+  if (hasOpenai) return 'openai/gpt-4o';
+  if (hasNvidia) return 'nvidia/llama-3.3-nemotron-super-49b-v1.5';
+  return 'ollama/llama3';
+}
+
+// ── SSE Stream Parsers ─────────────────────────────────────────────────────
+
+async function parseStandardSSE(response: Response, handlers: StreamHandlers) {
+  if (!response.body) {
+    handlers.onError(new Error('No response body received from stream'));
+    return;
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const data = trimmed.slice(5).trim();
+        if (data === '[DONE]') {
+          handlers.onDone();
+          return;
+        }
+
+        try {
+          const json = JSON.parse(data);
+          const delta = json?.choices?.[0]?.delta;
+          if (delta?.content) {
+            handlers.onToken(delta.content);
+          }
+        } catch {
+          // Skip malformed lines
+        }
+      }
+    }
+  } catch (err: any) {
+    handlers.onError(new Error(`Stream parsing error: ${err.message}`));
+    return;
+  }
+  handlers.onDone();
+}
+
+async function parseClaudeSSE(response: Response, handlers: StreamHandlers) {
+  if (!response.body) {
+    handlers.onError(new Error('No response body received from stream'));
+    return;
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const data = trimmed.slice(5).trim();
+
+        try {
+          const json = JSON.parse(data);
+          if (json.type === 'content_block_delta' && json.delta?.text) {
+            handlers.onToken(json.delta.text);
+          } else if (json.type === 'message_stop') {
+            handlers.onDone();
+            return;
+          }
+        } catch {
+          // Skip malformed lines
+        }
+      }
+    }
+  } catch (err: any) {
+    handlers.onError(new Error(`Stream parsing error: ${err.message}`));
+    return;
+  }
+  handlers.onDone();
+}
+
+async function parseGeminiSSE(response: Response, handlers: StreamHandlers) {
+  if (!response.body) {
+    handlers.onError(new Error('No response body received from stream'));
+    return;
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const data = trimmed.slice(5).trim();
+
+        try {
+          const json = JSON.parse(data);
+          const partText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (partText) {
+            handlers.onToken(partText);
+          }
+        } catch {
+          // Skip malformed lines
+        }
+      }
+    }
+  } catch (err: any) {
+    handlers.onError(new Error(`Stream parsing error: ${err.message}`));
+    return;
+  }
+  handlers.onDone();
+}
+
+async function parseOllamaStream(response: Response, handlers: StreamHandlers) {
+  if (!response.body) {
+    handlers.onError(new Error('No response body received from stream'));
+    return;
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        try {
+          const json = JSON.parse(trimmed);
+          if (json.message?.content) {
+            handlers.onToken(json.message.content);
+          }
+          if (json.done) {
+            handlers.onDone();
+            return;
+          }
+        } catch {
+          // Skip malformed lines
+        }
+      }
+    }
+  } catch (err: any) {
+    handlers.onError(new Error(`Stream parsing error: ${err.message}`));
+    return;
+  }
+  handlers.onDone();
+}
+
+// ── Stream Routing Implementation ──────────────────────────────────────────
+
+async function streamOpenAI(
+  messages: ChatMessage[],
+  modelId: string,
+  handlers: StreamHandlers,
+  options?: { temperature?: number; maxTokens?: number }
+) {
+  const key = getOpenaiKey();
+  if (!key) {
+    handlers.onError(new Error("OpenAI API key not found. Please configure OPENAI_API_KEY in your environment variables."));
+    return;
+  }
+  const cleanModel = modelId.replace('openai/', '');
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`
+      },
+      body: JSON.stringify({
+        model: cleanModel,
+        messages,
+        temperature: options?.temperature ?? 0.6,
+        max_tokens: options?.maxTokens ?? 4096,
+        stream: true
+      })
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`OpenAI API ${response.status}: ${text}`);
+    }
+    await parseStandardSSE(response, handlers);
+  } catch (err: any) {
+    handlers.onError(err);
+  }
+}
+
+async function streamClaude(
+  messages: ChatMessage[],
+  modelId: string,
+  handlers: StreamHandlers,
+  options?: { temperature?: number; maxTokens?: number }
+) {
+  const key = getClaudeKey();
+  if (!key) {
+    handlers.onError(new Error("Claude API key not found. Please configure CLAUDE_API_KEY in your environment variables."));
+    return;
+  }
+  const cleanModel = modelId.replace('claude/', '').replace('anthropic/', '');
+
+  const systemMsg = messages.find(m => m.role === 'system');
+  const userMsgs = messages
+    .filter(m => m.role !== 'system')
+    .map(m => ({ role: m.role, content: m.content }));
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: cleanModel,
+        messages: userMsgs,
+        system: systemMsg?.content,
+        max_tokens: options?.maxTokens ?? 4096,
+        temperature: options?.temperature ?? 0.6,
+        stream: true
+      })
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Claude API ${response.status}: ${text}`);
+    }
+    await parseClaudeSSE(response, handlers);
+  } catch (err: any) {
+    handlers.onError(err);
+  }
+}
+
+async function streamGemini(
+  messages: ChatMessage[],
+  modelId: string,
+  handlers: StreamHandlers,
+  options?: { temperature?: number; maxTokens?: number }
+) {
+  const key = getGeminiKey();
+  if (!key) {
+    handlers.onError(new Error("Gemini API key not found. Please configure GEMINI_API_KEY in your environment variables."));
+    return;
+  }
+  let cleanModel = modelId.replace('gemini/', '');
+  if (cleanModel === 'gemini') {
+    cleanModel = 'gemini-2.0-flash';
+  }
+
+  const systemMsg = messages.find(m => m.role === 'system');
+  const contents = messages
+    .filter(m => m.role !== 'system')
+    .map(m => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }]
+    }));
+
+  const body: any = {
+    contents,
+    generationConfig: {
+      temperature: options?.temperature ?? 0.6,
+      maxOutputTokens: options?.maxTokens ?? 4096
+    }
+  };
+
+  if (systemMsg) {
+    body.systemInstruction = {
+      parts: [{ text: systemMsg.content }]
+    };
+  }
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:streamGenerateContent?alt=sse&key=${key}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Gemini API ${response.status}: ${text}`);
+    }
+    await parseGeminiSSE(response, handlers);
+  } catch (err: any) {
+    handlers.onError(err);
+  }
+}
+
+async function streamOpenRouter(
+  messages: ChatMessage[],
+  modelId: string,
+  handlers: StreamHandlers,
+  options?: { temperature?: number; maxTokens?: number }
+) {
+  const key = getOpenrouterKey();
+  if (!key) {
+    handlers.onError(new Error("OpenRouter API key not found. Please configure OPENROUTER_API_KEY in your environment variables."));
+    return;
+  }
+  const cleanModel = modelId.replace('openrouter/', '');
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`,
+        'HTTP-Referer': 'http://localhost:5173',
+        'X-Title': 'Nexo AI'
+      },
+      body: JSON.stringify({
+        model: cleanModel,
+        messages,
+        temperature: options?.temperature ?? 0.6,
+        max_tokens: options?.maxTokens ?? 4096,
+        stream: true
+      })
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`OpenRouter API ${response.status}: ${text}`);
+    }
+    await parseStandardSSE(response, handlers);
+  } catch (err: any) {
+    handlers.onError(err);
+  }
+}
+
+async function streamOllama(
+  messages: ChatMessage[],
+  modelId: string,
+  handlers: StreamHandlers,
+  options?: { temperature?: number }
+) {
+  const cleanModel = modelId.replace('ollama/', '');
+  try {
+    const response = await fetch('http://localhost:11434/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: cleanModel,
+        messages: messages.map(m => ({ role: m.role, content: m.content })),
+        options: {
+          temperature: options?.temperature ?? 0.6
+        },
+        stream: true
+      })
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Ollama API ${response.status}: ${text}`);
+    }
+    await parseOllamaStream(response, handlers);
+  } catch (err: any) {
+    handlers.onError(new Error(`Ollama connection error. Verify Ollama is running locally on http://localhost:11434. Details: ${err.message}`));
+  }
+}
+
+async function streamDeepSeek(
+  messages: ChatMessage[],
+  modelId: string,
+  handlers: StreamHandlers,
+  options?: { temperature?: number; maxTokens?: number }
+) {
+  const key = getDeepseekKey();
+  if (!key) {
+    handlers.onError(new Error("DeepSeek API key not found. Please configure DEEPSEEK_API_KEY in your environment variables."));
+    return;
+  }
+  const cleanModel = modelId.replace('deepseek/', '');
+  try {
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`
+      },
+      body: JSON.stringify({
+        model: cleanModel,
+        messages,
+        temperature: options?.temperature ?? 0.6,
+        max_tokens: options?.maxTokens ?? 4096,
+        stream: true
+      })
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`DeepSeek API ${response.status}: ${text}`);
+    }
+    await parseStandardSSE(response, handlers);
+  } catch (err: any) {
+    handlers.onError(err);
+  }
+}
+
+async function streamNvidiaResponseDirect(
   messages: ChatMessage[],
   modelId: string,
   handlers: StreamHandlers,
   options?: { temperature?: number; maxTokens?: number; topP?: number }
 ): Promise<void> {
   const { temperature = 0.6, maxTokens = 8192, topP = 0.95 } = options ?? {};
+  const key = getNvidiaKey();
 
-  // Validate API key presence
-  if (!NVIDIA_KEY) {
-    handlers.onError(new Error("NVIDIA NIM API key not found. Please add NVIDIA_API_KEY / VITE_NVIDIA_API_KEY inside a local .env file."));
+  if (!key) {
+    handlers.onError(new Error("NVIDIA NIM API key not found. Please configure NVIDIA_API_KEY in your environment variables."));
     return;
   }
 
@@ -143,7 +650,7 @@ export async function streamNvidiaResponse(
       method: 'POST',
       headers: {
         'Content-Type':  'application/json',
-        'Authorization': `Bearer ${NVIDIA_KEY}`,
+        'Authorization': `Bearer ${key}`,
       },
       body: JSON.stringify({
         model:       modelId,
@@ -165,59 +672,75 @@ export async function streamNvidiaResponse(
     return;
   }
 
-  if (!response.body) {
-    handlers.onError(new Error('No response body'));
-    return;
-  }
-
-  const reader  = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer    = '';
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith('data:')) continue;
-        const data = trimmed.slice(5).trim();
-        if (data === '[DONE]') { handlers.onDone(); return; }
-
-        try {
-          const json = JSON.parse(data);
-          const delta = json?.choices?.[0]?.delta;
-          if (delta?.content) handlers.onToken(delta.content);
-        } catch {
-          // skip malformed lines
-        }
-      }
-    }
-  } catch (err) {
-    handlers.onError(new Error(`Stream read error: ${String(err)}`));
-    return;
-  }
-
-  handlers.onDone();
+  await parseStandardSSE(response, handlers);
 }
 
-// ── Legacy compat (used by old store) ────────────────────────────────────
-export type StreamTransport = 'nvidia' | 'sse' | 'websocket';
+// ── Unified Master Entrypoints ─────────────────────────────────────────────
 
 export async function streamAIResponse(
+  messages: ChatMessage[],
+  modelId: string,
+  handlers: StreamHandlers,
+  options?: { temperature?: number; maxTokens?: number; topP?: number }
+): Promise<void> {
+  let activeModel = modelId;
+
+  if (modelId === 'nexo-auto-router') {
+    const taskType = detectTaskType(messages);
+    activeModel = routeModelAutomatically(taskType);
+    console.log(`[Auto Router] Routed task type "${taskType}" to model: ${activeModel}`);
+  }
+
+  const provider = getProviderForModel(activeModel);
+
+  switch (provider) {
+    case 'OpenAI':
+      await streamOpenAI(messages, activeModel, handlers, options);
+      break;
+    case 'Claude':
+      await streamClaude(messages, activeModel, handlers, options);
+      break;
+    case 'Gemini':
+      await streamGemini(messages, activeModel, handlers, options);
+      break;
+    case 'OpenRouter':
+      await streamOpenRouter(messages, activeModel, handlers, options);
+      break;
+    case 'Ollama':
+      await streamOllama(messages, activeModel, handlers, options);
+      break;
+    case 'DeepSeek':
+      await streamDeepSeek(messages, activeModel, handlers, options);
+      break;
+    case 'NVIDIA':
+    default:
+      await streamNvidiaResponseDirect(messages, activeModel, handlers, options);
+      break;
+  }
+}
+
+// Keep signature compatible with previous version
+export async function streamNvidiaResponse(
+  messages: ChatMessage[],
+  modelId: string,
+  handlers: StreamHandlers,
+  options?: { temperature?: number; maxTokens?: number; topP?: number }
+): Promise<void> {
+  return streamAIResponse(messages, modelId, handlers, options);
+}
+
+// ── Legacy Compatibility Wrapper ──────────────────────────────────────────
+export type StreamTransport = 'nvidia' | 'sse' | 'websocket';
+
+export async function streamAIResponseLegacy(
   _transport: StreamTransport,
   prompt: string,
   handlers: StreamHandlers,
   modelId?: string
 ): Promise<void> {
-  await streamNvidiaResponse(
+  await streamAIResponse(
     [{ role: 'user', content: prompt }],
-    modelId ?? DEFAULT_MODEL,
-    handlers,
+    modelId ?? 'nexo-auto-router',
+    handlers
   );
 }

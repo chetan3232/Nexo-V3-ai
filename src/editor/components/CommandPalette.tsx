@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, FileCode2, Settings, TerminalSquare, Sparkles,
@@ -26,7 +26,18 @@ export function CommandPalette({ open, onClose }: Props) {
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const { openedFiles, openFile, setActiveFile } = useEditorStore();
-  const { flattenPaths } = useFileSystemStore();
+  const tree = useFileSystemStore((s) => s.tree);
+  const allFiles = useMemo(() => {
+    const paths: string[] = [];
+    const walk = (nodes: any[]) => {
+      nodes.forEach((node) => {
+        if (node.type === 'file') paths.push(node.path);
+        if (node.children) walk(node.children);
+      });
+    };
+    walk(tree);
+    return paths;
+  }, [tree]);
 
   // Reset when opened
   useEffect(() => {
@@ -36,8 +47,6 @@ export function CommandPalette({ open, onClose }: Props) {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
-
-  const allFiles = flattenPaths();
 
   const commands: CommandItem[] = [
     { id: 'new-file',    label: 'New File',           category: 'File',     icon: FileCode2,     shortcut: 'Ctrl+N' },

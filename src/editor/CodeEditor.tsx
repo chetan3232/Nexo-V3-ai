@@ -4,7 +4,7 @@ import { Save, SplitSquareHorizontal, FileCode2, Wand2, X, Send, Settings } from
 import { useEditorStore } from '@/store/useEditorStore';
 import { useChatStore } from '@/store/useChatStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
-import { streamNvidiaResponse } from '@/services/aiStreamClient';
+import { streamAIResponse, streamNvidiaResponse } from '@/services/aiStreamClient';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function defineNexoTheme(monaco: Monaco) {
@@ -296,55 +296,41 @@ ${beforeContext}
 
 CONTINUATION:`;
 
-              // Get API Key securely
-              const nimApiKey = (window as any).nexoDesktop?.getNvidiaKey() || (import.meta as any).env?.VITE_NVIDIA_API_KEY || '';
-              if (!nimApiKey) {
-                resolve({ items: [] });
-                return;
-              }
-
-              const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${nimApiKey}`,
-                },
-                body: JSON.stringify({
-                  model: 'nvidia/llama-3.1-nemotron-nano-8b-v1', // ultra-fast nim model for autocomplete ghost text
-                  messages: [{ role: 'user', content: prompt }],
-                  max_tokens: 48,
-                  temperature: 0.1,
-                  top_p: 0.9,
-                }),
-              });
-
-              if (!response.ok) {
-                resolve({ items: [] });
-                return;
-              }
-
-              const json = await response.json();
-              let completionText = json?.choices?.[0]?.message?.content ?? '';
-
-              // Clean markdown and duplicate prefixes
-              completionText = completionText.replace(/^```(\w+)?\n/, '').replace(/```$/, '');
-              if (completionText.startsWith(prefix)) {
-                completionText = completionText.substring(prefix.length);
-              }
-
-              resolve({
-                items: [
-                  {
-                    insertText: completionText,
-                    range: new monaco.Range(
-                      position.lineNumber,
-                      position.column,
-                      position.lineNumber,
-                      position.column
-                    ),
+              let completionText = '';
+              await streamAIResponse(
+                [{ role: 'user', content: prompt }],
+                'nexo-auto-router', // Route automatically to cheap model (Nemotron Nano / OpenAI Mini / Claude Haiku / local Ollama)
+                {
+                  onToken: (token) => {
+                    completionText += token;
                   },
-                ],
-              });
+                  onDone: () => {
+                    // Clean markdown and duplicate prefixes
+                    completionText = completionText.replace(/^```(\w+)?\n/, '').replace(/```$/, '');
+                    if (completionText.startsWith(prefix)) {
+                      completionText = completionText.substring(prefix.length);
+                    }
+
+                    resolve({
+                      items: [
+                        {
+                          insertText: completionText,
+                          range: new monaco.Range(
+                            position.lineNumber,
+                            position.column,
+                            position.lineNumber,
+                            position.column
+                          ),
+                        },
+                      ],
+                    });
+                  },
+                  onError: () => {
+                    resolve({ items: [] });
+                  }
+                },
+                { temperature: 0.1, maxTokens: 48 }
+              );
             } catch (e) {
               resolve({ items: [] });
             }
@@ -397,7 +383,7 @@ Only return the replacement code.`;
     );
 
     try {
-      await streamNvidiaResponse(messages, model, {
+      await streamAIResponse(messages, model, {
         onToken: (chunk) => {
           accumulatedText += chunk;
 

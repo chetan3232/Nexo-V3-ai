@@ -8,26 +8,41 @@ require('dotenv').config();
 
 const shellProcesses = new Map();
 
-function setupCorsForNvidia() {
-  // Allow renderer process to call NVIDIA API directly without CORS errors.
+function setupCorsForAI() {
+  const aiUrls = [
+    'https://integrate.api.nvidia.com/*',
+    'https://api.openai.com/*',
+    'https://api.anthropic.com/*',
+    'https://generativelanguage.googleapis.com/*',
+    'https://openrouter.ai/*',
+    'https://api.deepseek.com/*',
+    'http://localhost:11434/*'
+  ];
+
+  // Allow renderer process to call AI APIs directly without CORS errors.
   session.defaultSession.webRequest.onBeforeSendHeaders(
-    { urls: ['https://integrate.api.nvidia.com/*'] },
+    { urls: aiUrls },
     (details, callback) => {
       delete details.requestHeaders['Origin'];
-      details.requestHeaders['Referer'] = 'https://integrate.api.nvidia.com';
+      try {
+        const urlObj = new URL(details.url);
+        details.requestHeaders['Referer'] = urlObj.origin;
+      } catch (e) {
+        details.requestHeaders['Referer'] = details.url;
+      }
       callback({ requestHeaders: details.requestHeaders });
     }
   );
 
   session.defaultSession.webRequest.onHeadersReceived(
-    { urls: ['https://integrate.api.nvidia.com/*'] },
+    { urls: aiUrls },
     (details, callback) => {
       callback({
         responseHeaders: {
           ...details.responseHeaders,
           'Access-Control-Allow-Origin':  ['*'],
-          'Access-Control-Allow-Methods': ['GET, POST, OPTIONS, PUT, DELETE'],
-          'Access-Control-Allow-Headers': ['Content-Type, Authorization, Accept'],
+          'Access-Control-Allow-Methods': ['GET, POST, OPTIONS, PUT, DELETE, PATCH'],
+          'Access-Control-Allow-Headers': ['Content-Type, Authorization, Accept, anthropic-version, x-api-key'],
         },
       });
     }
@@ -42,9 +57,9 @@ function setupContentSecurityPolicy() {
         responseHeaders: {
           ...details.responseHeaders,
           'Content-Security-Policy': [
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " +
-            "connect-src 'self' https://integrate.api.nvidia.com http://localhost:* ws://localhost:* wss://localhost:* https://fonts.googleapis.com; " +
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+            "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://bundle.run; " +
+            "connect-src 'self' https://integrate.api.nvidia.com https://api.openai.com https://api.anthropic.com https://generativelanguage.googleapis.com https://openrouter.ai https://api.deepseek.com http://localhost:11434 http://localhost:* ws://localhost:* wss://localhost:* https://fonts.googleapis.com https://cdn.jsdelivr.net; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; " +
             "font-src 'self' https://fonts.gstatic.com; " +
             "img-src 'self' data: blob:;"
           ],
@@ -168,7 +183,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  setupCorsForNvidia();
+  setupCorsForAI();
   setupContentSecurityPolicy();
   createWindow();
 

@@ -31,6 +31,21 @@ contextBridge.exposeInMainWorld('nexoDesktop', {
   getNvidiaKey: () => {
     return process.env.NVIDIA_API_KEY || process.env.VITE_NVIDIA_API_KEY || '';
   },
+  getOpenaiKey: () => {
+    return process.env.OPENAI_API_KEY || '';
+  },
+  getClaudeKey: () => {
+    return process.env.CLAUDE_API_KEY || '';
+  },
+  getGeminiKey: () => {
+    return process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+  },
+  getOpenrouterKey: () => {
+    return process.env.OPENROUTER_API_KEY || '';
+  },
+  getDeepseekKey: () => {
+    return process.env.DEEPSEEK_API_KEY || '';
+  },
   selectFolder: () => {
     return ipcRenderer.invoke('select-folder');
   },

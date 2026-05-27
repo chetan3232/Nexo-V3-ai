@@ -20,7 +20,7 @@ const Avatar: React.FC<AvatarProps> = ({ state }) => {
     return () => clearTimeout(timer);
   }, []);
 
-  const eyeVariants = {
+  const eyeVariants: any = {
     IDLE: { scaleY: 1, height: 80, transition: { type: 'spring', stiffness: 200 } },
     LISTENING: { scaleY: 1.2, height: 90, transition: { type: 'spring', stiffness: 300 } },
     THINKING: { translateY: [0, -10, 0], transition: { repeat: Infinity, duration: 1 } },
@@ -29,7 +29,7 @@ const Avatar: React.FC<AvatarProps> = ({ state }) => {
     SPEAKING: { height: [70, 100, 70], transition: { repeat: Infinity, duration: 0.3 } },
   };
 
-  const containerVariants = {
+  const containerVariants: any = {
     IDLE: { scale: 1 },
     LISTENING: { scale: 1.05 },
     THINKING: { rotate: [0, 5, -5, 0], transition: { repeat: Infinity, duration: 2, ease: "easeInOut" } },
