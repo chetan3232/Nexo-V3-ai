@@ -8,20 +8,24 @@ contextBridge.exposeInMainWorld('nexoDesktop', {
     node:     process.versions.node,
     chrome:   process.versions.chrome,
   },
-  // Secure terminal IPC bindings
-  initTerminal: () => {
-    ipcRenderer.send('terminal-init');
+  // Secure concurrent terminal IPC bindings
+  initTerminal: (id) => {
+    ipcRenderer.send('terminal-init', id);
   },
-  sendTerminalInput: (data) => {
-    ipcRenderer.send('terminal-input', data);
+  sendTerminalInput: (id, data) => {
+    ipcRenderer.send('terminal-input', id, data);
   },
-  onTerminalData: (callback) => {
+  onTerminalData: (id, callback) => {
+    const channel = `terminal-data-${id}`;
     const subscription = (event, data) => callback(data);
-    ipcRenderer.on('terminal-data', subscription);
+    ipcRenderer.on(channel, subscription);
     // Return cleanup function to easily unsubscribe inside React hooks
     return () => {
-      ipcRenderer.removeListener('terminal-data', subscription);
+      ipcRenderer.removeListener(channel, subscription);
     };
+  },
+  killTerminal: (id) => {
+    ipcRenderer.send('terminal-kill', id);
   },
   // Securely retrieve the NVIDIA key from Node process env
   getNvidiaKey: () => {

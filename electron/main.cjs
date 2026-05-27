@@ -6,7 +6,7 @@ const child_process = require('node:child_process');
 // Load environment variables securely from .env
 require('dotenv').config();
 
-let shellProcess = null;
+const shellProcesses = new Map();
 
 function setupCorsForNvidia() {
   // Allow renderer process to call NVIDIA API directly without CORS errors.
@@ -58,34 +58,43 @@ function setupTerminalIpc(window) {
   const isWin = os.platform() === 'win32';
   const shellCmd = isWin ? 'powershell.exe' : (process.env.SHELL || 'bash');
 
-  ipcMain.on('terminal-init', () => {
-    if (shellProcess) {
-      try { shellProcess.kill(); } catch (e) {}
-    }
+  ipcMain.on('terminal-init', (event, id) => {
+    if (shellProcesses.has(id)) return; // shell already active
 
-    shellProcess = child_process.spawn(shellCmd, [], {
+    const processInstance = child_process.spawn(shellCmd, [], {
       cwd: process.cwd(),
       env: process.env,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
-    shellProcess.stdout.on('data', (data) => {
-      window.webContents.send('terminal-data', data.toString());
+    shellProcesses.set(id, processInstance);
+
+    processInstance.stdout.on('data', (data) => {
+      window.webContents.send(`terminal-data-${id}`, data.toString());
     });
 
-    shellProcess.stderr.on('data', (data) => {
-      window.webContents.send('terminal-data', data.toString());
+    processInstance.stderr.on('data', (data) => {
+      window.webContents.send(`terminal-data-${id}`, data.toString());
     });
 
-    shellProcess.on('exit', () => {
-      window.webContents.send('terminal-data', '\r\n[Shell process exited]\r\n');
-      shellProcess = null;
+    processInstance.on('exit', () => {
+      window.webContents.send(`terminal-data-${id}`, '\r\n[Shell process exited]\r\n');
+      shellProcesses.delete(id);
     });
   });
 
-  ipcMain.on('terminal-input', (event, data) => {
-    if (shellProcess && shellProcess.stdin.writable) {
-      shellProcess.stdin.write(data);
+  ipcMain.on('terminal-input', (event, id, data) => {
+    const processInstance = shellProcesses.get(id);
+    if (processInstance && processInstance.stdin.writable) {
+      processInstance.stdin.write(data);
+    }
+  });
+
+  ipcMain.on('terminal-kill', (event, id) => {
+    const processInstance = shellProcesses.get(id);
+    if (processInstance) {
+      try { processInstance.kill(); } catch (e) {}
+      shellProcesses.delete(id);
     }
   });
 }
@@ -151,8 +160,10 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (shellProcess) {
-    try { shellProcess.kill(); } catch (e) {}
+  // Gracefully terminate all active shell subprocesses on window close
+  for (const [id, proc] of shellProcesses.entries()) {
+    try { proc.kill(); } catch (e) {}
   }
+  shellProcesses.clear();
   if (process.platform !== 'darwin') app.quit();
 });
