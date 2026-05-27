@@ -24,6 +24,31 @@ type EditorState = {
   isDirty: (path: string) => boolean;
 };
 
+function detectLanguage(filePath: string): string {
+  const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+  const langMap: Record<string, string> = {
+    js: 'javascript',
+    jsx: 'javascript',
+    cjs: 'javascript',
+    mjs: 'javascript',
+    ts: 'typescript',
+    tsx: 'typescript',
+    css: 'css',
+    scss: 'scss',
+    html: 'html',
+    json: 'json',
+    md: 'markdown',
+    py: 'python',
+    rs: 'rust',
+    go: 'go',
+    sh: 'shell',
+    yaml: 'yaml',
+    yml: 'yaml',
+    sql: 'sql',
+  };
+  return langMap[ext] ?? 'plaintext';
+}
+
 const starterFiles: Record<string, EditorFile> = {
   'src/editor/CodeEditor.tsx': {
     path: 'src/editor/CodeEditor.tsx',
@@ -56,7 +81,7 @@ export const useEditorStore = create<EditorState>()(
       openFile: (path) =>
         set((state) => {
           const exists = Boolean(state.files[path]);
-          const language = path.endsWith('.tsx') || path.endsWith('.ts') ? 'typescript' : 'plaintext';
+          const language = detectLanguage(path);
           return {
             files: exists
               ? state.files
@@ -119,7 +144,6 @@ export const useEditorStore = create<EditorState>()(
         files: state.files,
         openedFiles: state.openedFiles,
         activeFile: state.activeFile,
-        splitFile: state.splitFile,
       }),
     }
   )

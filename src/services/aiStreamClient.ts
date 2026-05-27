@@ -1,6 +1,30 @@
 // ── NVIDIA NIM API — OpenAI-compatible streaming client ───────────────────
-const NVIDIA_BASE = 'https://integrate.api.nvidia.com/v1';
-const NVIDIA_KEY  = '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';
+//
+// CORS strategy:
+//  • Dev (Vite)      : requests go to /api/nvidia/* which Vite proxies to NVIDIA
+//  • Electron prod   : requests bypass CORS via Electron session (main.cjs)
+//  • Browser prod    : uses proxy path
+//
+const IS_ELECTRON = typeof window !== 'undefined' && !!(window as any).nexoDesktop;
+const IS_DEV      = typeof window !== 'undefined' && (location.hostname === 'localhost' || location.protocol === 'file:');
+
+// In dev Vite: use Vite proxy at /api/nvidia
+// In Electron file:// or prod: call NVIDIA directly (CORS is bypassed by Electron session)
+const NVIDIA_BASE = (IS_ELECTRON || !IS_DEV)
+  ? 'https://integrate.api.nvidia.com/v1'
+  : '/api/nvidia';
+
+const getNvidiaKey = () => {
+  // 1. Try to read from Electron preload bridge (highest security)
+  if (typeof window !== 'undefined' && (window as any).nexoDesktop?.getNvidiaKey) {
+    const key = (window as any).nexoDesktop.getNvidiaKey();
+    if (key) return key;
+  }
+  // 2. Fall back to Vite environment variables
+  return ((import.meta as any).env?.VITE_NVIDIA_API_KEY as string) || '';
+};
+
+const NVIDIA_KEY  = getNvidiaKey();
 
 export type StreamHandlers = {
   onToken: (token: string) => void;
@@ -106,6 +130,12 @@ export async function streamNvidiaResponse(
   options?: { temperature?: number; maxTokens?: number; topP?: number }
 ): Promise<void> {
   const { temperature = 0.6, maxTokens = 8192, topP = 0.95 } = options ?? {};
+
+  // Validate API key presence
+  if (!NVIDIA_KEY) {
+    handlers.onError(new Error("NVIDIA NIM API key not found. Please add NVIDIA_API_KEY / VITE_NVIDIA_API_KEY inside a local .env file."));
+    return;
+  }
 
   let response: Response;
   try {

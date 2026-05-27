@@ -9,6 +9,15 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: {
+          // Proxy NVIDIA NIM API calls to avoid CORS in dev mode
+          '/api/nvidia': {
+            target: 'https://integrate.api.nvidia.com/v1',
+            changeOrigin: true,
+            secure: true,
+            rewrite: (path) => path.replace(/^\/api\/nvidia/, ''),
+          },
+        },
       },
       plugins: [react(), tailwindcss()],
       define: {

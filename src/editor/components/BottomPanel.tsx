@@ -1,26 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TerminalSquare, AlertTriangle, AlignLeft, Bug,
   ChevronUp, ChevronDown, Plus, Trash2, Columns2,
 } from 'lucide-react';
-import { AIChatPanel } from './AIChatPanel';
+import { Terminal } from 'xterm';
+import { FitAddon } from 'xterm-addon-fit';
+import 'xterm/css/xterm.css';
 
 type PanelTab = 'terminal' | 'problems' | 'output' | 'debug';
-
-const terminalLines = [
-  { type: 'prompt', text: 'nexo@v3 ~/my-awesome-app' },
-  { type: 'cmd',    text: '> npm run dev' },
-  { type: 'blank',  text: '' },
-  { type: 'info',   text: '> my-awesome-app@1.0.0 dev' },
-  { type: 'info',   text: '> vite' },
-  { type: 'blank',  text: '' },
-  { type: 'ready',  text: '  VITE v5.1.0  ready in 362 ms' },
-  { type: 'blank',  text: '' },
-  { type: 'local',  text: '  ➜  Local:   http://localhost:5173/' },
-  { type: 'net',    text: '  ➜  Network: use --host to expose' },
-  { type: 'net',    text: '  ➜  press h + enter to show help' },
-];
 
 const problemLines = [
   { severity: 'error',   file: 'src/editor/CodeEditor.tsx', line: 42, msg: "Cannot find name 'Monaco'." },
@@ -48,9 +36,119 @@ const tabs: { id: PanelTab; label: string }[] = [
   { id: 'debug',    label: 'DEBUG CONSOLE' },
 ];
 
+function RealTerminal() {
+  const terminalRef = useRef<HTMLDivElement>(null);
+  const termInstance = useRef<Terminal | null>(null);
+
+  useEffect(() => {
+    const container = terminalRef.current;
+    if (!container) return;
+
+    const isElectron = typeof window !== 'undefined' && !!(window as any).nexoDesktop;
+
+    if (!isElectron) return; // Fallback handled by parent render
+
+    const desktop = (window as any).nexoDesktop;
+
+    // Instantiate premium terminal
+    const term = new Terminal({
+      cursorBlink: true,
+      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+      fontSize: 12.5,
+      theme: {
+        background: '#0d1117',
+        foreground: '#c9d1d9',
+        cursor: '#c9d1d9',
+        black: '#0d1117',
+        red: '#ff7b72',
+        green: '#7ee787',
+        yellow: '#f2cc60',
+        blue: '#58a6ff',
+        magenta: '#bc8cff',
+        cyan: '#79c0ff',
+        white: '#ffffff',
+      },
+      convertEol: true,
+    });
+
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(container);
+    fitAddon.fit();
+
+    termInstance.current = term;
+
+    // Spawn live native process shell
+    desktop.initTerminal();
+
+    // Hook listeners
+    const unsubscribe = desktop.onTerminalData((data: string) => {
+      term.write(data);
+    });
+
+    term.onData((data) => {
+      desktop.sendTerminalInput(data);
+    });
+
+    // Resize handlers
+    const handleResize = () => {
+      try { fitAddon.fit(); } catch (e) {}
+    };
+
+    window.addEventListener('resize', handleResize);
+    
+    // Fit terminal layout once container animates open
+    const timer = setTimeout(handleResize, 150);
+
+    return () => {
+      unsubscribe();
+      term.dispose();
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timer);
+    };
+  }, []);
+
+  return (
+    <div style={{ flex: 1, height: '100%', background: '#0d1117', padding: '6px 12px', minHeight: 0 }}>
+      <div ref={terminalRef} style={{ width: '100%', height: '100%', minHeight: '120px' }} />
+    </div>
+  );
+}
+
+function BrowserTerminalFallback() {
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100%',
+      background: '#0d1117',
+      gap: '12px',
+      color: '#6b7280',
+      padding: '24px',
+      textAlign: 'center',
+    }}>
+      <div style={{
+        width: '48px', height: '48px', borderRadius: '10px',
+        background: '#111827', border: '1px solid #1f2937',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <TerminalSquare size={20} color="#4b5563" />
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+        <span style={{ fontSize: '13.5px', color: '#e2e8f0', fontWeight: 600 }}>Interactive Terminal Restricted</span>
+        <span style={{ fontSize: '12px', color: '#4b5563', maxWidth: '400px', lineHeight: '1.5' }}>
+          Real OS shell terminal execution is limited inside standard web viewports. To launch integrated PowerShell or Bash consoles, please open Nexo inside our Electron desktop app.
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function BottomPanel({ collapsed, onToggle }: Props) {
   const [activeTab, setActiveTab] = useState<PanelTab>('terminal');
-  const [termInput, setTermInput] = useState('');
+  const isElectron = typeof window !== 'undefined' && !!(window as any).nexoDesktop;
 
   return (
     <section style={{
@@ -61,7 +159,7 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
       flexDirection: 'column',
       overflow: 'hidden',
     }}>
-      {/* ── Panel header — matches reference screenshot ── */}
+      {/* ── Panel header ── */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -99,7 +197,7 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
           })}
         </div>
 
-        {/* Right-side controls (matching reference: bash selector, +, split, trash, chevrons) */}
+        {/* Right-side controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', paddingRight: '8px' }}>
           {/* Shell selector */}
           <div style={{
@@ -116,8 +214,7 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
             marginRight: '4px',
           }}>
             <TerminalSquare size={11} />
-            <span>bash</span>
-            <ChevronDown size={10} />
+            <span>{isElectron ? 'shell' : 'mock'}</span>
           </div>
 
           {[
@@ -155,63 +252,19 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
       </div>
 
       {/* ── Panel content ── */}
-      <AnimatePresence initial={false}>
+      <AnimatePresence mode="wait">
         {!collapsed && (
           <motion.div
             key={activeTab}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.1 }}
             style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
           >
             {/* TERMINAL */}
             {activeTab === 'terminal' && (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div style={{
-                  flex: 1,
-                  overflowY: 'auto',
-                  padding: '10px 16px 6px',
-                  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                  fontSize: '12.5px',
-                  lineHeight: '1.7',
-                }}>
-                  {terminalLines.map((line, i) => (
-                    <div key={i} style={{
-                      color:
-                        line.type === 'prompt' ? '#22c55e' :
-                        line.type === 'cmd'    ? '#e2e8f0' :
-                        line.type === 'ready'  ? '#93c5fd' :
-                        line.type === 'local'  ? '#22c55e' :
-                        line.type === 'net'    ? '#22c55e' :
-                        line.type === 'info'   ? '#6b7280' :
-                        'transparent',
-                      height: line.type === 'blank' ? '6px' : 'auto',
-                    }}>
-                      {line.text}
-                    </div>
-                  ))}
-
-                  {/* Active prompt line */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                    <span style={{ color: '#22c55e', fontFamily: 'monospace' }}>{'>'}</span>
-                    <input
-                      value={termInput}
-                      onChange={(e) => setTermInput(e.target.value)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        outline: 'none',
-                        color: '#e2e8f0',
-                        fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: '12.5px',
-                        flex: 1,
-                        caretColor: '#e2e8f0',
-                      }}
-                      spellCheck={false}
-                    />
-                  </div>
-                </div>
-              </div>
+              isElectron ? <RealTerminal /> : <BrowserTerminalFallback />
             )}
 
             {/* PROBLEMS */}
