@@ -25,7 +25,7 @@ type ChatState = {
   setModel:   (v: string) => void;
   clearError: () => void;
   clearChat:  () => void;
-  sendMessage: (context?: string) => Promise<void>;
+  sendMessage: (context?: string, semanticMemories?: string) => Promise<void>;
 };
 
 export const useChatStore = create<ChatState>()(
@@ -42,7 +42,7 @@ export const useChatStore = create<ChatState>()(
       clearError: ()  => set({ error: null }),
       clearChat:  ()  => set({ messages: [] }),
 
-      sendMessage: async (context?: string) => {
+      sendMessage: async (context?: string, semanticMemories?: string) => {
         const { input, model, messages } = get();
         if (!input.trim() || get().isStreaming) return;
 
@@ -69,10 +69,13 @@ export const useChatStore = create<ChatState>()(
         });
 
         // Build conversation history for the API
+        const systemPrompt = 'You are Nexo AI, an expert coding assistant built into a VS Code-style IDE. Be concise, precise, and developer-friendly. Format code in markdown code blocks.' +
+          (semanticMemories ? `\n\n--- Semantic Memories ---\n${semanticMemories}` : '');
+
         const history: ApiMessage[] = [
           {
             role:    'system',
-            content: 'You are Nexo AI, an expert coding assistant built into a VS Code-style IDE. Be concise, precise, and developer-friendly. Format code in markdown code blocks.',
+            content: systemPrompt,
           },
           // Send up to last 20 messages as context
           ...[...messages.slice(-20), userMsg].map((m) => ({
@@ -91,8 +94,31 @@ export const useChatStore = create<ChatState>()(
               ),
             }));
           },
-          onDone: () => {
+          onDone: async () => {
             set({ isStreaming: false });
+            try {
+              const latestMessages = get().messages;
+              const lastAssistantMsg = latestMessages.find((m) => m.id === assistantId);
+              if (lastAssistantMsg && lastAssistantMsg.content) {
+                const { useMemoryStore } = await import('@/store/useMemoryStore');
+                
+                const title = userMsg.content.length > 50 
+                  ? userMsg.content.slice(0, 47) + '...' 
+                  : userMsg.content;
+                  
+                const exchangeContent = `User Question: ${userMsg.content}\n\nAI Response: ${lastAssistantMsg.content}`;
+                
+                await useMemoryStore.getState().upsertMemory({
+                  layer: 'conversation',
+                  title: `Chat: ${title}`,
+                  content: exchangeContent,
+                  source: 'chat-panel',
+                  tags: ['conversation', 'chat', model],
+                });
+              }
+            } catch (e) {
+              console.error('[Chat Store] Failed to save conversation memory:', e);
+            }
           },
           onError: (err) => {
             set({

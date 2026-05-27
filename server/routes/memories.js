@@ -1,65 +1,67 @@
 import express from 'express';
-import { supabase } from '../database/db.js';
-import { createEmbedding } from '../memory/index.js';
+import path from 'node:path';
+import { supabase, isMockDb } from '../database/db.js';
+import { FileMemoryEngine } from '../memoryEngine.js';
 
 const router = express.Router();
+const workspaceRoot = path.resolve(process.env.NEXO_WORKSPACE_ROOT ?? process.cwd());
+const localEngine = new FileMemoryEngine(workspaceRoot);
 
 // Retrieve semantic memories matching a query
 router.post('/search', async (req, res) => {
   const { query, layers, limit } = req.body;
-  const userId = req.body.userId || 'mock-user-id';
 
   if (!query) {
     return res.status(400).json({ error: 'Query parameter is required' });
   }
 
-  const queryEmbedding = createEmbedding(query);
-
-  const { data, error } = await supabase.rpc('match_memories', {
-    query_embedding: queryEmbedding,
-    match_layers: layers || null,
-    match_count: limit || 6,
-    owner_user_id: userId,
-  });
-
-  if (error) {
-    console.error('[Memories Route] search error:', error.message);
-    // Local fallback search (simulated mock if vector extensions fail)
-    return res.json({ results: [] });
+  // 1. If we are running in Mock mode or Supabase is disconnected, use the local engine router
+  if (isMockDb || !supabase) {
+    try {
+      const results = await localEngine.search(query, layers, limit || 6);
+      return res.json({ results });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
   }
 
-  return res.json({ results: data || [] });
+  // 2. Query Supabase pgvector RPC
+  try {
+    const results = await localEngine.search(query, layers, limit || 6);
+    return res.json({ results });
+  } catch (error) {
+    console.error('[Memories Route] search error, falling back to JSON:', error.message);
+    try {
+      const results = await localEngine.search(query, layers, limit || 6);
+      return res.json({ results });
+    } catch (e) {
+      return res.json({ results: [] });
+    }
+  }
 });
 
 // Upsert a memory entry
 router.post('/upsert', async (req, res) => {
   const { layer, title, content, source, tags } = req.body;
-  const userId = req.body.userId || 'mock-user-id';
 
   if (!layer || !title || !content) {
     return res.status(400).json({ error: 'layer, title, and content are required' });
   }
 
-  const embedding = createEmbedding(`${title}\n${content}\n${(tags || []).join(' ')}`);
-
-  const { data, error } = await supabase
-    .from('memories')
-    .insert({
-      user_id: userId,
+  // Always write via localEngine, which internally handles Supabase, ChromaDB, and Local JSON routing
+  try {
+    const entry = await localEngine.upsert({
       layer,
       title,
       content,
       source,
-      tags: tags || [],
-      embedding,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    return res.status(400).json({ error: error.message });
+      tags: tags || []
+    });
+    return res.json({ entry });
+  } catch (error) {
+    console.error('[Memories Route] upsert error:', error.message);
+    return res.status(500).json({ error: error.message });
   }
-  return res.json({ entry: data });
 });
 
 export default router;

@@ -7,6 +7,7 @@ import {
   MessageSquare, Cpu, Database, Trash2,
   FileSearch, Wand2, Component, Bug, ChevronDown,
   Play, StopCircle, CheckCircle2, AlertCircle, Loader2,
+  Search, Plus, PlusCircle, FileCode, Folder, Calendar, Info, Sparkles,
 } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
 import { NVIDIA_MODELS, NvidiaModel } from '@/services/aiStreamClient';
@@ -14,6 +15,7 @@ import { useEditorStore } from '@/store/useEditorStore';
 import { useTerminalStore } from '@/store/useTerminalStore';
 import { useFileSystemStore } from '@/store/useFileSystemStore';
 import { useAgentStore, AGENT_CONFIGS } from '@/store/useAgentStore';
+import { useMemoryStore } from '@/store/useMemoryStore';
 
 type Props  = { onClose: () => void };
 type PanelTab = 'chat' | 'agents' | 'memory';
@@ -162,8 +164,21 @@ export function AIAssistantPanel({ onClose }: Props) {
       contextParts.push(`\n\nProject files listing:\n${flatPaths.slice(0, 50).join('\n')}`);
     }
 
+    // 5. Fetch semantic memories
+    let semanticMemoriesStr = '';
+    try {
+      const memories = await useMemoryStore.getState().searchMemory(input, undefined, 4);
+      if (memories && memories.length > 0) {
+        semanticMemoriesStr = memories
+          .map((m) => `[${m.layer}] ${m.title}: ${m.content}`)
+          .join('\n');
+      }
+    } catch (err) {
+      console.error('Error fetching semantic memories:', err);
+    }
+
     const fullContext = contextParts.join('\n');
-    await sendMessage(fullContext);
+    await sendMessage(fullContext, semanticMemoriesStr);
   };
 
   const handleKey = (e: React.KeyboardEvent) => {
@@ -495,13 +510,7 @@ export function AIAssistantPanel({ onClose }: Props) {
         )}
 
         {activeTab === 'memory' && (
-          <motion.div key="memory" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '8px' }}
-          >
-            <Database size={28} color="#1f2937" />
-            <span style={{ fontSize: '12.5px', color: '#4b5563' }}>Memory store</span>
-            <span style={{ fontSize: '11.5px', color: '#1f2937' }}>0 embeddings stored</span>
-          </motion.div>
+          <MemoryExplorer />
         )}
       </AnimatePresence>
     </div>
@@ -807,6 +816,417 @@ function AgentWorkspace() {
         )}
       </div>
 
+    </div>
+  );
+}
+
+function MemoryExplorer() {
+  const { entries, upsertMemory, searchMemory, syncFromBackend, getLayerCount } = useMemoryStore();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLayer, setSelectedLayer] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Form states
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [formLayer, setFormLayer] = useState<'code' | 'project' | 'conversation' | 'short' | 'long'>('code');
+  const [formTitle, setFormTitle] = useState('');
+  const [formContent, setFormContent] = useState('');
+  const [formTags, setFormTags] = useState('');
+  const [formSource, setFormSource] = useState('');
+  const [formSubmitting, setFormSubmitting] = useState(false);
+  const [formMessage, setFormMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Sync memories from backend on mount
+  useEffect(() => {
+    syncFromBackend();
+  }, [syncFromBackend]);
+
+  // Perform search when searchQuery or selectedLayer changes
+  useEffect(() => {
+    const performSearch = async () => {
+      if (!searchQuery.trim()) {
+        setSearchResults([]);
+        return;
+      }
+      setIsSearching(true);
+      try {
+        const layers = selectedLayer ? [selectedLayer as any] : undefined;
+        const results = await searchMemory(searchQuery, layers, 8);
+        setSearchResults(results);
+      } catch (err) {
+        console.error('Failed to search memory:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const delayDebounce = setTimeout(() => {
+      performSearch();
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery, selectedLayer, searchMemory]);
+
+  // Determine what to display
+  const displayedMemories = useMemo(() => {
+    if (searchQuery.trim()) {
+      return searchResults;
+    }
+    // Otherwise filter entries by selected layer if any
+    return entries.filter(e => !selectedLayer || e.layer === selectedLayer);
+  }, [searchQuery, searchResults, entries, selectedLayer]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formTitle.trim() || !formContent.trim()) {
+      setFormMessage({ type: 'error', text: 'Title and Content are required.' });
+      return;
+    }
+
+    setFormSubmitting(true);
+    setFormMessage(null);
+    try {
+      const tagsArray = formTags
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+
+      await upsertMemory({
+        layer: formLayer,
+        title: formTitle.trim(),
+        content: formContent.trim(),
+        source: formSource.trim() || undefined,
+        tags: tagsArray,
+      });
+
+      setFormMessage({ type: 'success', text: 'Memory successfully saved!' });
+      setFormTitle('');
+      setFormContent('');
+      setFormTags('');
+      setFormSource('');
+      setTimeout(() => {
+        setShowAddForm(false);
+        setFormMessage(null);
+      }, 1500);
+    } catch (err: any) {
+      setFormMessage({ type: 'error', text: err.message || 'Failed to save memory.' });
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
+  const getLayerColor = (layer: string) => {
+    switch (layer) {
+      case 'code': return '#60a5fa'; // Blue
+      case 'project': return '#a78bfa'; // Purple
+      case 'conversation': return '#34d399'; // Green
+      default: return '#9ca3af'; // Grey
+    }
+  };
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: '#0d1117', color: '#e2e8f0', overflowY: 'auto' }}>
+      
+      {/* 1. Header & Stats Grid */}
+      <div style={{ padding: '12px 14px', background: '#111827', borderBottom: '1px solid #1f2937', flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#9ca3af', letterSpacing: '0.08em' }}>SECTORS OVERVIEW</span>
+          <button 
+            onClick={() => setShowAddForm(!showAddForm)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '4px',
+              background: showAddForm ? '#ef444420' : 'rgba(59,130,246,0.15)',
+              border: `1px solid ${showAddForm ? '#ef444440' : 'rgba(59,130,246,0.3)'}`,
+              borderRadius: '4px', color: showAddForm ? '#ef4444' : '#60a5fa',
+              fontSize: '10.5px', fontWeight: 600, padding: '3px 8px', cursor: 'pointer',
+              transition: 'all 150ms ease'
+            }}
+          >
+            {showAddForm ? <X size={12} /> : <Plus size={12} />}
+            {showAddForm ? 'Cancel' : 'Add Memory'}
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+          {[
+            { id: 'code', label: 'Code', color: '#60a5fa', desc: 'Syntax/Patterns' },
+            { id: 'project', label: 'Project', color: '#a78bfa', desc: 'Architecture' },
+            { id: 'conversation', label: 'Chats', color: '#34d399', desc: 'Agent Logs' }
+          ].map(layer => {
+            const count = getLayerCount(layer.id as any);
+            const isSelected = selectedLayer === layer.id;
+            return (
+              <button
+                key={layer.id}
+                onClick={() => setSelectedLayer(isSelected ? null : layer.id)}
+                style={{
+                  background: isSelected ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.01)',
+                  border: `1.5px solid ${isSelected ? layer.color : '#1f2937'}`,
+                  borderRadius: '6px', padding: '8px 6px', textAlign: 'left',
+                  cursor: 'pointer', transition: 'all 200ms',
+                  boxShadow: isSelected ? `0 0 8px ${layer.color}25` : 'none',
+                }}
+                onMouseEnter={(e) => { if(!isSelected) e.currentTarget.style.borderColor = '#374151'; }}
+                onMouseLeave={(e) => { if(!isSelected) e.currentTarget.style.borderColor = '#1f2937'; }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: 600, color: layer.color }}>{layer.label}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#f3f4f6', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', padding: '0 4px' }}>
+                    {count}
+                  </span>
+                </div>
+                <div style={{ fontSize: '8px', color: '#6b7280', marginTop: '2px' }}>{layer.desc}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. Collapsible Form Drawer */}
+      <AnimatePresence>
+        {showAddForm && (
+          <motion.form
+            onSubmit={handleSubmit}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            style={{
+              overflow: 'hidden', background: '#111827',
+              borderBottom: '1px solid #1f2937', padding: '12px 14px',
+              display: 'flex', flexDirection: 'column', gap: '8px'
+            }}
+          >
+            <div style={{ fontSize: '11px', fontWeight: 700, color: '#60a5fa', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <PlusCircle size={12} />
+              NEW MEMORY ENTRY
+            </div>
+
+            {formMessage && (
+              <div style={{
+                padding: '6px 8px', borderRadius: '4px', fontSize: '11px',
+                background: formMessage.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                border: `1px solid ${formMessage.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+                color: formMessage.type === 'success' ? '#34d399' : '#ef4444',
+              }}>
+                {formMessage.text}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <label style={{ fontSize: '9px', color: '#9ca3af', fontWeight: 600 }}>LAYER</label>
+                <select
+                  value={formLayer}
+                  onChange={(e) => setFormLayer(e.target.value as any)}
+                  style={{
+                    background: '#0d1117', border: '1px solid #1f2937', borderRadius: '4px',
+                    color: '#e2e8f0', fontSize: '11.5px', padding: '4px', outline: 'none'
+                  }}
+                >
+                  <option value="code">Code</option>
+                  <option value="project">Project</option>
+                  <option value="conversation">Conversation</option>
+                  <option value="short">Short Term</option>
+                  <option value="long">Long Term</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <label style={{ fontSize: '9px', color: '#9ca3af', fontWeight: 600 }}>SOURCE (OPTIONAL)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. src/App.tsx"
+                  value={formSource}
+                  onChange={(e) => setFormSource(e.target.value)}
+                  style={{
+                    background: '#0d1117', border: '1px solid #1f2937', borderRadius: '4px',
+                    color: '#e2e8f0', fontSize: '11.5px', padding: '4px 6px', outline: 'none'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <label style={{ fontSize: '9px', color: '#9ca3af', fontWeight: 600 }}>TITLE</label>
+              <input
+                type="text"
+                placeholder="Brief summary title"
+                value={formTitle}
+                onChange={(e) => setFormTitle(e.target.value)}
+                style={{
+                  background: '#0d1117', border: '1px solid #1f2937', borderRadius: '4px',
+                  color: '#e2e8f0', fontSize: '11.5px', padding: '4px 6px', outline: 'none'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <label style={{ fontSize: '9px', color: '#9ca3af', fontWeight: 600 }}>CONTENT / GUIDELINE / CODE SNIPPET</label>
+              <textarea
+                rows={3}
+                placeholder="Enter details to vectorize and remember..."
+                value={formContent}
+                onChange={(e) => setFormContent(e.target.value)}
+                style={{
+                  background: '#0d1117', border: '1px solid #1f2937', borderRadius: '4px',
+                  color: '#e2e8f0', fontSize: '11.5px', padding: '6px', outline: 'none', resize: 'none',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <label style={{ fontSize: '9px', color: '#9ca3af', fontWeight: 600 }}>TAGS (COMMA SEPARATED)</label>
+              <input
+                type="text"
+                placeholder="e.g. react, hooks, performance"
+                value={formTags}
+                onChange={(e) => setFormTags(e.target.value)}
+                style={{
+                  background: '#0d1117', border: '1px solid #1f2937', borderRadius: '4px',
+                  color: '#e2e8f0', fontSize: '11.5px', padding: '4px 6px', outline: 'none'
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={formSubmitting}
+              style={{
+                background: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px',
+                padding: '6px 0', fontSize: '11.5px', fontWeight: 600, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                marginTop: '4px'
+              }}
+            >
+              {formSubmitting ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}
+              Index Embedding
+            </button>
+          </motion.form>
+        )}
+      </AnimatePresence>
+
+      {/* 3. Search Bar */}
+      <div style={{ padding: '10px 14px', borderBottom: '1px solid #1f2937', flexShrink: 0, display: 'flex', gap: '6px', alignItems: 'center' }}>
+        <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <Search size={13} color="#4b5563" style={{ position: 'absolute', left: '8px' }} />
+          <input
+            type="text"
+            placeholder="Search semantic memory..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%', background: '#111827', border: '1px solid #1f2937',
+              borderRadius: '6px', padding: '6px 8px 6px 26px', fontSize: '12px',
+              color: '#e2e8f0', outline: 'none', transition: 'border-color 150ms'
+            }}
+            onFocus={(e) => e.target.style.borderColor = '#374151'}
+            onBlur={(e) => e.target.style.borderColor = '#1f2937'}
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery('')}
+              style={{ position: 'absolute', right: '8px', background: 'none', border: 'none', color: '#4b5563', cursor: 'pointer', fontSize: '11px' }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+        {selectedLayer && (
+          <button
+            onClick={() => setSelectedLayer(null)}
+            style={{
+              background: 'rgba(255,255,255,0.03)', border: '1px solid #1f2937',
+              borderRadius: '6px', fontSize: '10.5px', color: '#9ca3af', padding: '5px 8px',
+              cursor: 'pointer'
+            }}
+          >
+            Clear Filter
+          </button>
+        )}
+      </div>
+
+      {/* 4. Memories List */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {isSearching ? (
+          <div style={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#4b5563' }}>
+            <Loader2 size={20} className="animate-spin" color="#3b82f6" />
+            <span style={{ fontSize: '11.5px' }}>Searching database...</span>
+          </div>
+        ) : displayedMemories.length === 0 ? (
+          <div style={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '36px 0', color: '#4b5563' }}>
+            <Info size={24} />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#9ca3af' }}>No Memories Found</span>
+            <span style={{ fontSize: '11px', textAlign: 'center', maxWidth: '200px', lineHeight: '1.4' }}>
+              {searchQuery ? 'Try adjusting your search keywords.' : 'No memory logs exist in this layer yet.'}
+            </span>
+          </div>
+        ) : (
+          displayedMemories.map((entry) => {
+            const layerColor = getLayerColor(entry.layer);
+            return (
+              <div
+                key={entry.id}
+                style={{
+                  background: 'rgba(255,255,255,0.02)', border: '1px solid #1f2937',
+                  borderRadius: '8px', padding: '10px 12px', transition: 'all 200ms',
+                  display: 'flex', flexDirection: 'column', gap: '6px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                  <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#e2e8f0' }}>{entry.title}</span>
+                  
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    {entry.score !== undefined && (
+                      <span style={{ fontSize: '9px', fontWeight: 700, color: '#facc15', background: 'rgba(250,204,21,0.1)', padding: '1px 4px', borderRadius: '3px' }}>
+                        {Math.round(entry.score * 100)}% Match
+                      </span>
+                    )}
+                    <span style={{
+                      fontSize: '9px', fontWeight: 700, textTransform: 'uppercase',
+                      color: layerColor, background: `${layerColor}15`,
+                      padding: '1px 5px', borderRadius: '3px', border: `1px solid ${layerColor}25`
+                    }}>
+                      {entry.layer}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{
+                  fontSize: '11.5px', color: '#9ca3af', lineHeight: '1.5',
+                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  background: '#070a0f', border: '1px solid #141b24', borderRadius: '4px', padding: '6px 8px'
+                }}>
+                  {entry.content}
+                </div>
+
+                {(entry.source || (entry.tags && entry.tags.length > 0)) && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px' }}>
+                    {entry.source ? (
+                      <span style={{ fontSize: '9px', color: '#4b5563', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <Folder size={9} />
+                        {entry.source}
+                      </span>
+                    ) : <div />}
+
+                    {entry.tags && entry.tags.length > 0 && (
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {entry.tags.map(tag => (
+                          <span key={tag} style={{ fontSize: '9px', color: '#6b7280', background: 'rgba(255,255,255,0.03)', padding: '1px 4px', borderRadius: '3px' }}>
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }
