@@ -1,8 +1,9 @@
-import { useMemo, useState, useRef, useCallback } from 'react';
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import Editor, { Monaco } from '@monaco-editor/react';
-import { Save, SplitSquareHorizontal, FileCode2, Wand2, X, Send } from 'lucide-react';
+import { Save, SplitSquareHorizontal, FileCode2, Wand2, X, Send, Settings } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useChatStore } from '@/store/useChatStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import { streamNvidiaResponse } from '@/services/aiStreamClient';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -115,6 +116,12 @@ export function CodeEditor() {
   const active = activeFile ? files[activeFile] : null;
   const split  = splitFile  ? files[splitFile]  : null;
 
+  // Custom Persisted Settings
+  const {
+    autoSave, fontSize, wordWrap, minimapEnabled,
+    setAutoSave, setFontSize, setWordWrap, setMinimapEnabled
+  } = useSettingsStore();
+
   // Floating Inline AI state
   const [inlineAIActive, setInlineAIActive] = useState(false);
   const [inlineAIPosition, setInlineAIPosition] = useState<{ top: number; left: number } | null>(null);
@@ -123,8 +130,34 @@ export function CodeEditor() {
   const [inlineAISubmitting, setInlineAISubmitting] = useState(false);
   const [inlineAIError, setInlineAIError] = useState<string | null>(null);
 
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [editorInstance, setEditorInstance] = useState<any>(null);
   const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
+  const saveTimeoutRef = useRef<any>(null);
+
+  // Debounced auto-save triggers
+  const handleContentChange = (val: string | undefined) => {
+    if (!active) return;
+    updateFileContent(active.path, val ?? '');
+
+    if (autoSave) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(() => {
+        saveFile(active.path);
+      }, 1000); // 1000ms debounce save
+    }
+  };
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const triggerInlineAI = useCallback((editor: any, monaco: Monaco) => {
     const selection = editor.getSelection();
@@ -260,8 +293,8 @@ Only return the replacement code.`;
   };
 
   const editorOptions = useMemo(() => ({
-    minimap:                    { enabled: true, scale: 1, renderCharacters: false },
-    fontSize:                   13.5,
+    minimap:                    { enabled: minimapEnabled, scale: 1, renderCharacters: false },
+    fontSize:                   fontSize,
     fontFamily:                 "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
     fontLigatures:              true,
     lineHeight:                 22,
@@ -272,7 +305,7 @@ Only return the replacement code.`;
     suggestOnTriggerCharacters: true,
     quickSuggestions:           true,
     inlineSuggest:              { enabled: true },
-    wordWrap:                   'off' as const,
+    wordWrap:                   wordWrap,
     scrollBeyondLastLine:       false,
     renderLineHighlight:        'line' as const,
     padding:                    { top: 10, bottom: 10 },
@@ -291,7 +324,7 @@ Only return the replacement code.`;
       verticalScrollbarSize: 6,
       horizontalScrollbarSize: 6,
     },
-  }), []);
+  }), [fontSize, wordWrap, minimapEnabled]);
 
   if (!active) return <EmptyState />;
 
@@ -301,7 +334,7 @@ Only return the replacement code.`;
   const iconColor = getBreadcrumbIcon(fileName);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0d1117' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0d1117', position: 'relative' }}>
       {/* ── Breadcrumb bar ── */}
       <div style={{
         display: 'flex',
@@ -345,26 +378,38 @@ Only return the replacement code.`;
 
         {/* Editor actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          {/* Split Screen */}
           <button
             onClick={toggleSplitFile}
             title="Split Editor"
-            style={{
-              background: 'none', border: 'none', padding: '4px', cursor: 'pointer',
-              color: '#4b5563', borderRadius: '4px', display: 'flex',
-              transition: 'color 100ms',
-            }}
+            style={actionBtnStyle}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
           >
             <SplitSquareHorizontal size={14} />
           </button>
+          
+          {/* Editor Settings Cog */}
+          <button
+            onClick={() => setSettingsOpen((o) => !o)}
+            title="Editor Settings"
+            style={{
+              ...actionBtnStyle,
+              color: settingsOpen ? '#3b82f6' : '#4b5563',
+            }}
+            onMouseEnter={(e) => { if (!settingsOpen) (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
+            onMouseLeave={(e) => { if (!settingsOpen) (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
+          >
+            <Settings size={14} />
+          </button>
+
+          {/* Manual Save */}
           <button
             onClick={() => saveFile(active.path)}
             title="Save (Ctrl+S)"
             style={{
-              background: 'none', border: 'none', padding: '4px', cursor: 'pointer',
+              ...actionBtnStyle,
               color: isDirty(active.path) ? '#3b82f6' : '#4b5563',
-              borderRadius: '4px', display: 'flex', transition: 'color 100ms',
             }}
           >
             <Save size={14} />
@@ -389,7 +434,7 @@ Only return the replacement code.`;
           onMount={handleEditorMount}
           theme="nexo-dark"
           options={editorOptions}
-          onChange={(v) => updateFileContent(active.path, v ?? '')}
+          onChange={handleContentChange}
         />
 
         {split && (
@@ -510,7 +555,104 @@ Only return the replacement code.`;
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* ── Interactive Settings Floating Panel ── */}
+        <AnimatePresence>
+          {settingsOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -4 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: -4 }}
+              transition={{ duration: 0.12 }}
+              style={{
+                position: 'absolute',
+                top: '32px',
+                right: '12px',
+                width: '220px',
+                background: 'rgba(17, 24, 39, 0.92)',
+                backdropFilter: 'blur(16px)',
+                border: '1px solid #1f2937',
+                borderRadius: '8px',
+                boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
+                padding: '12px',
+                zIndex: 1010,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              <div style={{ fontSize: '10px', fontWeight: 700, color: '#4b5563', letterSpacing: '0.08em', borderBottom: '1px solid #1f2937', paddingBottom: '6px' }}>EDITOR CONFIG</div>
+
+              {/* Toggle Auto Save */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: '#c9d1d9' }}>
+                <span>Auto Save</span>
+                <input
+                  type="checkbox"
+                  checked={autoSave}
+                  onChange={(e) => setAutoSave(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+              </div>
+
+              {/* Change Font Size */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: '#c9d1d9' }}>
+                <span>Font Size</span>
+                <select
+                  value={fontSize}
+                  onChange={(e) => setFontSize(Number(e.target.value))}
+                  style={{
+                    background: '#0d1117',
+                    border: '1px solid #1f2937',
+                    color: '#c9d1d9',
+                    fontSize: '11px',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    outline: 'none',
+                  }}
+                >
+                  {[12, 13, 14, 15, 16].map((sz) => (
+                    <option key={sz} value={sz}>{sz}px</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Toggle Word Wrap */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: '#c9d1d9' }}>
+                <span>Word Wrap</span>
+                <input
+                  type="checkbox"
+                  checked={wordWrap === 'on'}
+                  onChange={(e) => setWordWrap(e.target.checked ? 'on' : 'off')}
+                  style={{ cursor: 'pointer' }}
+                />
+              </div>
+
+              {/* Toggle Minimap */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', color: '#c9d1d9' }}>
+                <span>Minimap</span>
+                <input
+                  type="checkbox"
+                  checked={minimapEnabled}
+                  onChange={(e) => setMinimapEnabled(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
 }
+
+const actionBtnStyle: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  padding: '4px',
+  cursor: 'pointer',
+  color: '#4b5563',
+  borderRadius: '4px',
+  display: 'flex',
+  transition: 'color 100ms',
+};

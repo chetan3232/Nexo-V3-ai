@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronDown, ChevronRight, Folder, FolderOpen,
-  Pencil, Trash2, Check, FilePlus, FolderPlus, RefreshCw,
-  MoreHorizontal,
+  Pencil, Trash2, Check, Search
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { FileNode, useFileSystemStore } from '@/store/useFileSystemStore';
@@ -92,7 +91,7 @@ function GitBadge({ status }: { status?: FileNode['gitStatus'] }) {
   );
 }
 
-function TreeRow({ node, level }: { node: FileNode; level: number }) {
+function TreeRow({ node, level, searchActive }: { node: FileNode; level: number; searchActive: boolean }) {
   const { expanded, toggleExpanded, renameNode, deleteNode, moveNode, selectPath, selectedPath } =
     useFileSystemStore();
   const { markSaved, openFile } = useEditorStore();
@@ -101,7 +100,8 @@ function TreeRow({ node, level }: { node: FileNode; level: number }) {
   const [hovered, setHovered] = useState(false);
 
   const isFolder = node.type === 'folder';
-  const isOpen = expanded[node.path];
+  // Force folders open when search is active to instantly display results
+  const isOpen = searchActive ? true : expanded[node.path];
   const selected = selectedPath === node.path;
 
   const handleClick = () => {
@@ -237,7 +237,7 @@ function TreeRow({ node, level }: { node: FileNode; level: number }) {
             style={{ overflow: 'hidden', padding: 0, margin: 0 }}
           >
             {node.children.map((child) => (
-              <TreeRow key={child.id} node={child} level={level + 1} />
+              <TreeRow key={child.id} node={child} level={level + 1} searchActive={searchActive} />
             ))}
           </motion.ul>
         )}
@@ -246,13 +246,88 @@ function TreeRow({ node, level }: { node: FileNode; level: number }) {
   );
 }
 
+// Recursive file filtering algorithm
+function filterFileTree(nodes: FileNode[], query: string): FileNode[] {
+  if (!query.trim()) return nodes;
+  const q = query.toLowerCase();
+
+  return nodes
+    .map((node) => {
+      if (node.type === 'file') {
+        return node.name.toLowerCase().includes(q) ? node : null;
+      }
+      const filteredChildren = node.children ? filterFileTree(node.children, query) : [];
+      if (filteredChildren.length > 0 || node.name.toLowerCase().includes(q)) {
+        return { ...node, children: filteredChildren };
+      }
+      return null;
+    })
+    .filter((n): n is FileNode => n !== null);
+}
+
 export function ExplorerTree() {
   const { tree } = useFileSystemStore();
+  const [query, setQuery] = useState('');
+
+  const filteredTree = useMemo(() => {
+    return filterFileTree(tree, query);
+  }, [tree, query]);
+
+  const searchActive = query.trim().length > 0;
+
   return (
-    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-      {tree.map((node) => (
-        <TreeRow key={node.id} node={node} level={0} />
-      ))}
-    </ul>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* ── File filter search panel ── */}
+      <div style={{ padding: '2px 12px 10px', display: 'flex', gap: '4px', position: 'relative', flexShrink: 0 }}>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Filter files (e.g. main.ts)"
+          style={{
+            width: '100%',
+            background: '#0d1117',
+            border: '1px solid #1f2937',
+            borderRadius: '5px',
+            color: '#e2e8f0',
+            fontSize: '12px',
+            padding: '4px 22px 4px 24px',
+            outline: 'none',
+            fontFamily: "'Inter', sans-serif",
+            boxSizing: 'border-box',
+          }}
+        />
+        {/* Search icon overlay */}
+        <span style={{ position: 'absolute', left: '20px', top: '9px', color: '#4b5563', display: 'flex' }}>
+          <Search size={12} />
+        </span>
+        {searchActive && (
+          <button
+            onClick={() => setQuery('')}
+            style={{
+              position: 'absolute',
+              right: '18px',
+              top: '8px',
+              background: 'none',
+              border: 'none',
+              color: '#6b7280',
+              cursor: 'pointer',
+              fontSize: '11px',
+              padding: '0 2px',
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#c9d1d9'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#6b7280'; }}
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      {/* File Tree list scroll container */}
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, overflowY: 'auto', flex: 1 }}>
+        {filteredTree.map((node) => (
+          <TreeRow key={node.id} node={node} level={0} searchActive={searchActive} />
+        ))}
+      </ul>
+    </div>
   );
 }

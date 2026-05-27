@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export type TerminalInstance = {
   id: string;
   name: string;
+  logs: string;
 };
 
 type TerminalState = {
@@ -12,6 +13,7 @@ type TerminalState = {
   createTerminal: () => void;
   removeTerminal: (id: string) => void;
   setActiveId: (id: string) => void;
+  appendTerminalLog: (id: string, text: string) => void;
 };
 
 export const useTerminalStore = create<TerminalState>((set, get) => ({
@@ -29,6 +31,7 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
     const newTerm: TerminalInstance = {
       id,
       name: `${shellName} (${index})`,
+      logs: '',
     };
 
     // If in Electron, initialize native process shell matching this ID
@@ -65,5 +68,15 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
   setActiveId: (id) => {
     set({ activeId: id });
+  },
+
+  appendTerminalLog: (id, text) => {
+    set((state) => ({
+      terminals: state.terminals.map((t) =>
+        t.id === id
+          ? { ...t, logs: (t.logs + text).slice(-3000) }
+          : t
+      ),
+    }));
   },
 }));
