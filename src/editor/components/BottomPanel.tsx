@@ -89,7 +89,11 @@ function RealTerminal({ id }: { id: string }) {
 
     // Handle resizing on split drags
     const handleResize = () => {
-      try { fitAddon.fit(); } catch (e) {}
+      try {
+        if (container && container.clientWidth > 0 && container.clientHeight > 0) {
+          fitAddon.fit();
+        }
+      } catch (e) {}
     };
 
     window.addEventListener('resize', handleResize);

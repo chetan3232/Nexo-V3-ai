@@ -42,7 +42,7 @@ function setupContentSecurityPolicy() {
         responseHeaders: {
           ...details.responseHeaders,
           'Content-Security-Policy': [
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+            "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " +
             "connect-src 'self' https://integrate.api.nvidia.com http://localhost:* ws://localhost:* wss://localhost:* https://fonts.googleapis.com; " +
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com; " +
@@ -82,15 +82,21 @@ function setupTerminalIpc(window) {
     shellProcesses.set(id, processInstance);
 
     processInstance.stdout.on('data', (data) => {
-      window.webContents.send(`terminal-data-${id}`, data.toString());
+      if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+        window.webContents.send(`terminal-data-${id}`, data.toString());
+      }
     });
 
     processInstance.stderr.on('data', (data) => {
-      window.webContents.send(`terminal-data-${id}`, data.toString());
+      if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+        window.webContents.send(`terminal-data-${id}`, data.toString());
+      }
     });
 
     processInstance.on('exit', () => {
-      window.webContents.send(`terminal-data-${id}`, '\r\n[Shell process exited]\r\n');
+      if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+        window.webContents.send(`terminal-data-${id}`, '\r\n[Shell process exited]\r\n');
+      }
       shellProcesses.delete(id);
     });
   });

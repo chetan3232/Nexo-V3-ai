@@ -201,7 +201,10 @@ export function CodeEditor() {
     setEditorInstance(editor);
     setMonacoInstance(monaco);
 
-    // Register Ctrl/Cmd + K shortcut
+    // Set monaco globally so other components (like AI context engines) can query error diagnostics
+    (window as any).monaco = monaco;
+
+    // Register Ctrl/Cmd + K shortcut for inline AI panel
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => {
       triggerInlineAI(editor, monaco);
     });
@@ -213,6 +216,153 @@ export function CodeEditor() {
         useEditorStore.getState().saveFile(activePath);
       }
     });
+
+    // ── 1. Register Custom Right-Click Context Menu AI Actions ─────────────────
+    editor.addAction({
+      id: 'nexo-explain-selection',
+      label: 'Nexo AI: Explain selection',
+      contextMenuOrder: 1,
+      contextMenuGroupId: 'navigation',
+      run: (ed: any) => {
+        const selectionText = ed.getModel()?.getValueInRange(ed.getSelection()) ?? '';
+        if (selectionText) {
+          useChatStore.getState().setInput(`Explain this selected code:\n\`\`\`\n${selectionText}\n\`\`\``);
+        }
+      }
+    });
+
+    editor.addAction({
+      id: 'nexo-optimize-performance',
+      label: 'Nexo AI: Optimize performance',
+      contextMenuOrder: 2,
+      contextMenuGroupId: 'navigation',
+      run: (ed: any) => {
+        const selectionText = ed.getModel()?.getValueInRange(ed.getSelection()) ?? '';
+        if (selectionText) {
+          useChatStore.getState().setInput(`Optimize this selected code for better performance, memory footprint, and CPU execution:\n\`\`\`\n${selectionText}\n\`\`\``);
+        }
+      }
+    });
+
+    editor.addAction({
+      id: 'nexo-document-code',
+      label: 'Nexo AI: Document code',
+      contextMenuOrder: 3,
+      contextMenuGroupId: 'navigation',
+      run: (ed: any) => {
+        const selectionText = ed.getModel()?.getValueInRange(ed.getSelection()) ?? '';
+        if (selectionText) {
+          useChatStore.getState().setInput(`Add high-quality comments, JSDoc/docstrings, and clear developer documentation to this code:\n\`\`\`\n${selectionText}\n\`\`\``);
+        }
+      }
+    });
+
+    // ── 2. Register Debounced Monaco Inline AI Ghost Text Autocomplete ─────────
+    let autocompleteTimer: any = null;
+
+    const nexoInlineProvider = {
+      provideInlineCompletions: async (model: any, position: any, context: any, token: any) => {
+        if (autocompleteTimer) clearTimeout(autocompleteTimer);
+
+        const lineContent = model.getLineContent(position.lineNumber);
+        const prefix = lineContent.substring(0, position.column - 1);
+
+        // Only query if user typed at least 3 characters on this active line
+        if (prefix.trim().length < 3) {
+          return { items: [] };
+        }
+
+        return new Promise((resolve) => {
+          autocompleteTimer = setTimeout(async () => {
+            if (token.isCancellationRequested) {
+              resolve({ items: [] });
+              return;
+            }
+
+            try {
+              const offset = model.getOffsetAt(position);
+              const text = model.getValue();
+              const beforeContext = text.substring(Math.max(0, offset - 1200), offset);
+
+              const prompt = `You are a high-speed inline code autocompletion engine inside an AI-native IDE.
+Complete the code immediately following the cursor.
+Output ONLY the continuation of the code.
+- Do NOT include markdown code fences (like \`\`\`js).
+- Do NOT include conversational explanations or chat comments.
+- Do NOT repeat the prefix code that is already there.
+
+CODE CONTEXT BEFORE CURSOR:
+${beforeContext}
+
+CONTINUATION:`;
+
+              // Get API Key securely
+              const nimApiKey = (window as any).nexoDesktop?.getNvidiaKey() || (import.meta as any).env?.VITE_NVIDIA_API_KEY || '';
+              if (!nimApiKey) {
+                resolve({ items: [] });
+                return;
+              }
+
+              const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${nimApiKey}`,
+                },
+                body: JSON.stringify({
+                  model: 'nvidia/llama-3.1-nemotron-nano-8b-v1', // ultra-fast nim model for autocomplete ghost text
+                  messages: [{ role: 'user', content: prompt }],
+                  max_tokens: 48,
+                  temperature: 0.1,
+                  top_p: 0.9,
+                }),
+              });
+
+              if (!response.ok) {
+                resolve({ items: [] });
+                return;
+              }
+
+              const json = await response.json();
+              let completionText = json?.choices?.[0]?.message?.content ?? '';
+
+              // Clean markdown and duplicate prefixes
+              completionText = completionText.replace(/^```(\w+)?\n/, '').replace(/```$/, '');
+              if (completionText.startsWith(prefix)) {
+                completionText = completionText.substring(prefix.length);
+              }
+
+              resolve({
+                items: [
+                  {
+                    insertText: completionText,
+                    range: new monaco.Range(
+                      position.lineNumber,
+                      position.column,
+                      position.lineNumber,
+                      position.column
+                    ),
+                  },
+                ],
+              });
+            } catch (e) {
+              resolve({ items: [] });
+            }
+          }, 600); // 600ms debounce
+        });
+      },
+      freeInlineCompletions: () => {},
+    };
+
+    if (!(window as any).nexoInlineProviderRegistered) {
+      (window as any).nexoInlineProviderRegistered = true;
+      const languages = ['typescript', 'javascript', 'python', 'html', 'css', 'json', 'markdown', 'plaintext'];
+      languages.forEach((lang) => {
+        try {
+          monaco.languages.registerInlineCompletionsProvider(lang, nexoInlineProvider);
+        } catch (e) {}
+      });
+    }
   };
 
   const submitInlineAI = async () => {

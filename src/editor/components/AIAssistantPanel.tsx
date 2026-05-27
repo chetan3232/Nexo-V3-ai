@@ -1,4 +1,4 @@
-import { FormEvent, useRef, useEffect, useState } from 'react';
+import { FormEvent, useRef, useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -10,6 +10,8 @@ import {
 import { useChatStore } from '@/store/useChatStore';
 import { NVIDIA_MODELS, NvidiaModel } from '@/services/aiStreamClient';
 import { useEditorStore } from '@/store/useEditorStore';
+import { useTerminalStore } from '@/store/useTerminalStore';
+import { useFileSystemStore } from '@/store/useFileSystemStore';
 
 type Props  = { onClose: () => void };
 type PanelTab = 'chat' | 'agents' | 'memory';
@@ -37,6 +39,11 @@ export function AIAssistantPanel({ onClose }: Props) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // `@`-Mentions autocomplete states
+  const [mentionActive, setMentionActive] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionIndex, setMentionIndex] = useState(0);
+
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -50,18 +57,130 @@ export function AIAssistantPanel({ onClose }: Props) {
     ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
   }, [input]);
 
+  // Fetch flat file tree for file mentions
+  const flatPaths = useFileSystemStore((s) => s.flattenPaths());
+  const filteredPaths = useMemo(() => {
+    if (!mentionActive) return [];
+    const q = mentionQuery.toLowerCase();
+    return flatPaths
+      .filter((p) => p.toLowerCase().includes(q))
+      .slice(0, 8); // limit top suggestions to 8 items
+  }, [flatPaths, mentionActive, mentionQuery]);
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setInput(val);
+
+    const cursorPosition = e.target.selectionStart;
+    const textBeforeCursor = val.substring(0, cursorPosition);
+    const lastAtSignIndex = textBeforeCursor.lastIndexOf('@');
+
+    if (lastAtSignIndex !== -1) {
+      const textAfterAt = textBeforeCursor.substring(lastAtSignIndex + 1);
+      if (!textAfterAt.includes(' ')) {
+        setMentionActive(true);
+        setMentionQuery(textAfterAt);
+        setMentionIndex(0);
+        return;
+      }
+    }
+    setMentionActive(false);
+  };
+
+  const handleSelectMention = (path: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+
+    const val = input;
+    const cursorPosition = ta.selectionStart;
+    const textBeforeCursor = val.substring(0, cursorPosition);
+    const textAfterCursor = val.substring(cursorPosition);
+    const lastAtSignIndex = textBeforeCursor.lastIndexOf('@');
+
+    if (lastAtSignIndex !== -1) {
+      const nextText = val.substring(0, lastAtSignIndex) + `@${path} ` + textAfterCursor;
+      setInput(nextText);
+      setMentionActive(false);
+
+      setTimeout(() => {
+        ta.focus();
+        const newCursorPos = lastAtSignIndex + path.length + 2; // account for '@' and space
+        ta.setSelectionRange(newCursorPos, newCursorPos);
+      }, 50);
+    }
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isStreaming) return;
-    // Inject active file context
-    const activeContent = activeFile && files[activeFile]
-      ? `\n\nCurrent file (${activeFile}):\n\`\`\`${files[activeFile].language ?? ''}\n${files[activeFile].content?.slice(0, 4000) ?? ''}\n\`\`\``
-      : '';
-    await sendMessage(activeContent);
+
+    const contextParts: string[] = [];
+
+    // 1. Inject active file context
+    if (activeFile && files[activeFile]) {
+      contextParts.push(`\n\nCurrent active file (${activeFile}):\n\`\`\`${files[activeFile].language ?? ''}\n${files[activeFile].content?.slice(0, 3000) ?? ''}\n\`\`\``);
+    }
+
+    // 2. Inject terminal logs context
+    const termStore = useTerminalStore.getState();
+    const activeTerminal = termStore.terminals.find((t) => t.id === termStore.activeId);
+    if (activeTerminal?.logs) {
+      const logs = activeTerminal.logs.slice(-1500);
+      contextParts.push(`\n\nRecent terminal logs from active shell (${activeTerminal.name}):\n\`\`\`\n${logs}\n\`\`\``);
+    }
+
+    // 3. Inject monaco compilation errors/diagnostics context
+    if (typeof window !== 'undefined' && (window as any).monaco) {
+      const monaco = (window as any).monaco;
+      const markers = monaco.editor.getModelMarkers({});
+      if (markers.length > 0) {
+        const errors = markers
+          .map((m: any) => `Line ${m.startLineNumber}: ${m.message} (${m.severity === 8 ? 'Error' : 'Warning'})`)
+          .slice(0, 10)
+          .join('\n');
+        contextParts.push(`\n\nMonaco compiler diagnostics & linter markers:\n\`\`\`\n${errors}\n\`\`\``);
+      }
+    }
+
+    // 4. Inject project tree overview context (flat files listing)
+    const fsStore = useFileSystemStore.getState();
+    const flatPaths = fsStore.flattenPaths();
+    if (flatPaths.length > 0) {
+      contextParts.push(`\n\nProject files listing:\n${flatPaths.slice(0, 50).join('\n')}`);
+    }
+
+    const fullContext = contextParts.join('\n');
+    await sendMessage(fullContext);
   };
 
   const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit(e as any); }
+    if (mentionActive && filteredPaths.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex((idx) => (idx + 1) % filteredPaths.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex((idx) => (idx - 1 + filteredPaths.length) % filteredPaths.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        handleSelectMention(filteredPaths[mentionIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setMentionActive(false);
+        return;
+      }
+    }
+
+    if (e.key === 'Enter' && !e.shiftKey) { 
+      e.preventDefault(); 
+      void submit(e as any); 
+    }
   };
 
   const currentModel = NVIDIA_MODELS.find((m) => m.id === model) ?? NVIDIA_MODELS[0];
@@ -82,7 +201,7 @@ export function AIAssistantPanel({ onClose }: Props) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#111827', borderLeft: '1px solid #1f2937', position: 'relative' }}>
 
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px 0', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', padding: '10px 14px 0', flexShrink: 0, justifyContent: 'space-between' }}>
         <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.1em', color: '#e2e8f0' }}>NEXO AI</span>
         <div style={{ display: 'flex', gap: '2px' }}>
           <button onClick={clearChat} title="Clear chat" style={iconBtnStyle}>
@@ -195,7 +314,79 @@ export function AIAssistantPanel({ onClose }: Props) {
             </div>
 
             {/* ── Input area ── */}
-            <div style={{ borderTop: '1px solid #1f2937', padding: '10px 12px', flexShrink: 0 }}>
+            <div style={{ borderTop: '1px solid #1f2937', padding: '10px 12px', flexShrink: 0, position: 'relative' }}>
+              
+              {/* Sleek Glassmorphic Mentions Popover */}
+              <AnimatePresence>
+                {mentionActive && filteredPaths.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                    transition={{ duration: 0.12 }}
+                    style={{
+                      position: 'absolute',
+                      bottom: '100%',
+                      left: '12px',
+                      right: '12px',
+                      marginBottom: '8px',
+                      background: 'rgba(17, 24, 39, 0.92)',
+                      backdropFilter: 'blur(16px)',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                      borderRadius: '8px',
+                      boxShadow: '0 -10px 25px rgba(0,0,0,0.5)',
+                      maxHeight: '180px',
+                      overflowY: 'auto',
+                      zIndex: 1000,
+                      padding: '4px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1px',
+                    }}
+                  >
+                    <div style={{ padding: '6px 8px 4px', fontSize: '10px', fontWeight: 700, color: '#60a5fa', letterSpacing: '0.08em' }}>
+                      WORKSPACE FILE MENTIONS
+                    </div>
+                    {filteredPaths.map((path, idx) => {
+                      const isSelected = idx === mentionIndex;
+                      const fileparts = path.split('/');
+                      const filename = fileparts.pop() ?? path;
+                      const dir = fileparts.join('/');
+
+                      return (
+                        <button
+                          key={path}
+                          type="button"
+                          onClick={() => handleSelectMention(path)}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            textAlign: 'left',
+                            background: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '6px 8px',
+                            cursor: 'pointer',
+                            width: '100%',
+                            transition: 'background 80ms',
+                          }}
+                          onMouseEnter={() => setMentionIndex(idx)}
+                        >
+                          <span style={{ fontSize: '12.5px', color: isSelected ? '#60a5fa' : '#e2e8f0', fontWeight: isSelected ? 600 : 400 }}>
+                            📄 {filename}
+                          </span>
+                          {dir && (
+                            <span style={{ fontSize: '10px', color: '#4b5563', marginTop: '1px' }}>
+                              {dir}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Model selector */}
               <div style={{ position: 'relative', marginBottom: '8px' }}>
                 <button onClick={() => setModelOpen((v) => !v)} style={{
@@ -255,8 +446,14 @@ export function AIAssistantPanel({ onClose }: Props) {
                   onFocusCapture={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = '#374151'; }}
                   onBlurCapture={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = '#1f2937'; }}
                 >
-                  <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKey}
-                    placeholder="Ask anything... (Enter to send)" disabled={isStreaming} rows={1}
+                  <textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={handleTextareaChange}
+                    onKeyDown={handleKey}
+                    placeholder="Ask anything... (type @ to mention files, Enter to send)"
+                    disabled={isStreaming}
+                    rows={1}
                     style={{ width: '100%', background: 'transparent', border: 'none', outline: 'none', color: '#e2e8f0', fontSize: '13px', fontFamily: "'Inter', sans-serif", padding: '10px 12px 4px', resize: 'none', lineHeight: '1.5', minHeight: '38px', boxSizing: 'border-box' }}
                   />
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px 6px' }}>

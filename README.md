@@ -124,7 +124,7 @@ Integrate production-grade AI assistant.
 - [x] Code blocks
 - [x] Syntax highlighting
 - [x] Chat history (Zustand persisted)
-- [ ] Token counter
+- [x] Token counter (approximated context word counting active)
 
 ---
 
@@ -142,15 +142,15 @@ Integrate production-grade AI assistant.
 ### 3. AI Context Engine
 - [x] Inject open files
 - [x] Inject selected code
-- [ ] Inject terminal logs
-- [ ] Inject errors
-- [ ] Inject project tree
+- [x] Inject terminal logs (recent terminal subprocess stream history capture)
+- [x] Inject errors (live Monaco editor compilation markers and warning lists)
+- [x] Inject project tree (flat folder tree recursive path descriptors)
 
 ---
 
 ### 4. Inline AI
-- [ ] Ghost text
-- [ ] Autocomplete
+- [x] Ghost text (ultra-fast debounced gray continuation recommendations)
+- [x] Autocomplete (Tab-to-accept inline completions triggers)
 - [x] Explain selection
 - [x] Refactor code
 - [x] Fix errors
@@ -159,7 +159,7 @@ Integrate production-grade AI assistant.
 ---
 
 ### 5. AI Actions
-- [ ] Right-click AI menu
+- [x] Right-click AI menu (native Explain, Optimize, and Document code selections)
 - [ ] AI commands
 - [ ] AI shortcuts
 - [ ] Context actions
