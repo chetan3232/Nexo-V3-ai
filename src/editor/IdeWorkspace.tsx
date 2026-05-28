@@ -16,6 +16,10 @@ import { LivePreview } from './components/LivePreview';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useTerminalStore } from '@/store/useTerminalStore';
 import { writeWorkspaceFile } from '@/services/fileSystemClient';
+import { AISpotlight } from './components/AISpotlight';
+import { ShortcutsModal } from './components/ShortcutsModal';
+import { CloudProjectsModal } from './components/CloudProjectsModal';
+import { FloatingAIWidget } from './components/FloatingAIWidget';
 
 // ── Drag-resize handle ─────────────────────────────────────────────────────
 function ResizeHandle({
@@ -78,6 +82,9 @@ const MAX_TERMINAL_H = 520;
 export function IdeWorkspace() {
   const [activeIcon, setActiveIcon]     = useState(0);
   const [paletteOpen, setPaletteOpen]   = useState(false);
+  const [spotlightOpen, setSpotlightOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [cloudOpen, setCloudOpen]         = useState(false);
 
   // Pixel-based sizes for reliable layout
   const [sidebarW,  setSidebarW]  = useState(DEFAULT_SIDEBAR_W);
@@ -267,9 +274,19 @@ export function IdeWorkspace() {
       }
 
       // Terminal
-      case 'new-terminal':
+       case 'new-terminal':
         setBottomPanelCollapsed(false);
         useTerminalStore.getState().createTerminal();
+        break;
+      
+      case 'toggle-spotlight':
+        setSpotlightOpen((v) => !v);
+        break;
+      case 'toggle-cloud':
+        setCloudOpen((v) => !v);
+        break;
+      case 'toggle-shortcuts':
+        setShortcutsOpen((v) => !v);
         break;
 
       // Help
@@ -297,6 +314,18 @@ export function IdeWorkspace() {
       if (isMod && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setPaletteOpen((v) => !v);
+      }
+      else if (isMod && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        handleCommand('toggle-spotlight');
+      }
+      else if (isMod && e.shiftKey && e.key.toLowerCase() === 'u') {
+        e.preventDefault();
+        handleCommand('toggle-cloud');
+      }
+      else if (isMod && e.shiftKey && (e.key === '?' || e.key === '/')) {
+        e.preventDefault();
+        handleCommand('toggle-shortcuts');
       }
       else if (isMod && e.shiftKey && e.key.toLowerCase() === 'p') {
         e.preventDefault();
@@ -517,6 +546,12 @@ export function IdeWorkspace() {
 
       {/* ── Command Palette ── */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+
+      {/* ── Premium UX & Cloud Modals ── */}
+      <AISpotlight isOpen={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
+      <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <CloudProjectsModal isOpen={cloudOpen} onClose={() => setCloudOpen(false)} />
+      <FloatingAIWidget />
     </div>
   );
 }

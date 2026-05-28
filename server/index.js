@@ -18,6 +18,7 @@ import logsRouter from './routes/logs.js';
 import buildRouter from './routes/build.js';
 import gitRouter from './routes/git.js';
 import searchRouter from './routes/search.js';
+import syncRouter from './routes/sync.js';
 
 import { initializeWebSocketGateway } from './websocket/index.js';
 import { streamTokens } from './ai/index.js';
@@ -94,6 +95,7 @@ app.use('/api/logs', logsRouter);
 app.use('/api/build', buildRouter);
 app.use('/api/git', gitRouter);
 app.use('/api/search', searchRouter);
+app.use('/api/sync', syncRouter);
 
 // Run Sandbox Command Route
 app.post('/api/sandbox/run', async (req, res) => {

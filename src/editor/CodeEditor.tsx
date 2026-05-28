@@ -357,6 +357,17 @@ CONTINUATION:`;
     const handleEditorCommand = (e: CustomEvent<{ command: string; payload?: any }>) => {
       const { command, payload } = e.detail;
       switch (command) {
+        case 'insert-text': {
+          const selection = editorInstance.getSelection();
+          if (selection && payload) {
+            editorInstance.executeEdits('insert-api', [{
+              range: selection,
+              text: payload,
+              forceMoveMarkers: true
+            }]);
+          }
+          break;
+        }
         case 'undo':
           editorInstance.trigger('menu', 'undo', null);
           break;

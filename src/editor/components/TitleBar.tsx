@@ -52,6 +52,8 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
         { type: 'separator' },
         { label: 'Auto Save', type: 'checkbox', checked: autoSave, action: () => dispatchCommand('toggle-auto-save') },
         { type: 'separator' },
+        { label: 'Cloud Sync & Projects...', shortcut: 'Ctrl+Shift+U', action: () => dispatchCommand('toggle-cloud') },
+        { type: 'separator' },
         { label: 'Exit', action: () => { if ((window as any).nexoDesktop) (window as any).nexoDesktop.closeWindow(); else window.close(); } }
       ]
     },
@@ -112,6 +114,8 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
       trigger: 'Help',
       items: [
         { label: 'Documentation', action: () => window.open('https://github.com/chetan3232/Nexo-V3-ai', '_blank') },
+        { label: 'Keyboard Shortcuts', shortcut: 'Ctrl+Shift+?', action: () => dispatchCommand('toggle-shortcuts') },
+        { type: 'separator' },
         { label: 'About', action: () => dispatchCommand('about') }
       ]
     }

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, FileCode2, Settings, TerminalSquare, Sparkles,
-  GitBranch, ChevronRight, Hash,
+  GitBranch, ChevronRight, Hash, Cloud
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useFileSystemStore } from '@/store/useFileSystemStore';
@@ -106,6 +106,36 @@ export function CommandPalette({ open, onClose }: Props) {
       shortcut: 'Ctrl+Shift+A',
       action: () => {
         window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-ai' } }));
+      }
+    },
+    {
+      id: 'spotlight',
+      label: 'AI Spotlight Global Command',
+      category: 'AI',
+      icon: Sparkles,
+      shortcut: 'Ctrl+I',
+      action: () => {
+        window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-spotlight' } }));
+      }
+    },
+    {
+      id: 'cloud-sync',
+      label: 'Cloud Projects & Sync Manager',
+      category: 'Cloud',
+      icon: Cloud,
+      shortcut: 'Ctrl+Shift+U',
+      action: () => {
+        window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-cloud' } }));
+      }
+    },
+    {
+      id: 'shortcuts-reference',
+      label: 'Keyboard Shortcuts Reference',
+      category: 'Help',
+      icon: Settings,
+      shortcut: 'Ctrl+Shift+?',
+      action: () => {
+        window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-shortcuts' } }));
       }
     },
     {
