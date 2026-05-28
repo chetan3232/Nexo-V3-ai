@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import {
   Files, Search, GitBranch, Bug, Blocks, Settings,
-  Sparkles, UserCircle2,
+  Sparkles, UserCircle2, Clock, DownloadCloud
 } from 'lucide-react';
 
 type ActivityItem = {
@@ -11,12 +11,14 @@ type ActivityItem = {
 };
 
 const topItems: ActivityItem[] = [
-  { icon: Files,       label: 'Explorer',       id: 'explorer' },
-  { icon: Search,      label: 'Search',          id: 'search' },
-  { icon: GitBranch,   label: 'Source Control',  id: 'git' },
-  { icon: Bug,         label: 'Run & Debug',     id: 'debug' },
-  { icon: Blocks,      label: 'Extensions',      id: 'extensions' },
-  { icon: Sparkles,    label: 'AI Tools',        id: 'ai' },
+  { icon: Files,         label: 'Explorer',       id: 'explorer' },
+  { icon: Search,        label: 'Search',          id: 'search' },
+  { icon: GitBranch,     label: 'Source Control',  id: 'git' },
+  { icon: Bug,           label: 'Run & Debug',     id: 'debug' },
+  { icon: Clock,         label: 'Time Travel',     id: 'timetravel' },
+  { icon: DownloadCloud, label: 'App Export',      id: 'build' },
+  { icon: Blocks,        label: 'Extensions',      id: 'extensions' },
+  { icon: Sparkles,      label: 'AI Tools',        id: 'ai' },
 ];
 
 const bottomItems: ActivityItem[] = [

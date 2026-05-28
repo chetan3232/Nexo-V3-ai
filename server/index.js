@@ -15,6 +15,9 @@ import deploymentsRouter from './routes/deployments.js';
 import memoriesRouter from './routes/memories.js';
 import agentsRouter from './routes/agents.js';
 import logsRouter from './routes/logs.js';
+import buildRouter from './routes/build.js';
+import gitRouter from './routes/git.js';
+import searchRouter from './routes/search.js';
 
 import { initializeWebSocketGateway } from './websocket/index.js';
 import { streamTokens } from './ai/index.js';
@@ -29,6 +32,7 @@ const processManager = new ProcessManager(workspaceRoot);
 
 // Initialize Legacy Engines for complete backwards compatibility
 let memoryEngine = new FileMemoryEngine(workspaceRoot);
+app.set('memoryEngine', memoryEngine);
 const deploymentProviders = {
   vercel: { configFile: 'vercel.json', buildCommand: 'npm run build', outputDirectory: 'dist' },
   netlify: { configFile: 'netlify.toml', buildCommand: 'npm run build', outputDirectory: 'dist' },
@@ -87,6 +91,9 @@ app.use('/api/deployments', deploymentsRouter);
 app.use('/api/memories', memoriesRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api/logs', logsRouter);
+app.use('/api/build', buildRouter);
+app.use('/api/git', gitRouter);
+app.use('/api/search', searchRouter);
 
 // Run Sandbox Command Route
 app.post('/api/sandbox/run', async (req, res) => {
@@ -279,6 +286,7 @@ app.post('/api/fs/workspace', async (req, res) => {
     workspaceRoot = resolved;
     processManager.workspaceRoot = resolved;
     memoryEngine = new FileMemoryEngine(workspaceRoot);
+    app.set('memoryEngine', memoryEngine);
     console.log(`[Server] Dynamic workspace root updated to: ${workspaceRoot}`);
     res.json({ ok: true, workspaceRoot });
   } catch (error) {
