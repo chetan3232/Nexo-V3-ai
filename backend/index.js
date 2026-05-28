@@ -15,17 +15,45 @@ import deploymentsRouter from './routes/deployments.js';
 import memoriesRouter from './routes/memories.js';
 import agentsRouter from './routes/agents.js';
 import logsRouter from './routes/logs.js';
+import buildRouter from './routes/build.js';
+import gitRouter from './routes/git.js';
+import searchRouter from './routes/search.js';
+import syncRouter from './routes/sync.js';
+import vaultRouter, { decrypt } from './routes/vault.js';
+import analyticsRouter, { logBackendError } from './routes/analytics.js';
+
 
 import { initializeWebSocketGateway } from './websocket/index.js';
 import { streamTokens } from './ai/index.js';
+import { SandboxRuntime } from './runtime/index.js';
+import { ProcessManager } from './runtime/processManager.js';
 
 const app = express();
 const server = http.createServer(app);
 const port = Number(process.env.NEXO_API_PORT ?? 8787);
 let workspaceRoot = path.resolve(process.env.NEXO_WORKSPACE_ROOT ?? process.cwd());
+const processManager = new ProcessManager(workspaceRoot);
 
 // Initialize Legacy Engines for complete backwards compatibility
 let memoryEngine = new FileMemoryEngine(workspaceRoot);
+app.set('memoryEngine', memoryEngine);
+
+// Load encrypted vault keys on boot
+const loadVaultKeysOnBoot = async () => {
+  try {
+    const vaultPath = path.join(workspaceRoot, '.nexo', 'vault.json');
+    const content = await fs.readFile(vaultPath, 'utf8');
+    const vault = JSON.parse(content);
+    if (vault.openaiKey) process.env.OPENAI_API_KEY = decrypt(vault.openaiKey);
+    if (vault.anthropicKey) process.env.ANTHROPIC_API_KEY = decrypt(vault.anthropicKey);
+    if (vault.geminiKey) process.env.GEMINI_API_KEY = decrypt(vault.geminiKey);
+    if (vault.nvidiaKey) process.env.NVIDIA_API_KEY = decrypt(vault.nvidiaKey);
+    console.log('[Vault] Encrypted credentials successfully loaded into environment variables.');
+  } catch (e) {
+    // Vault does not exist yet or empty
+  }
+};
+void loadVaultKeysOnBoot();
 const deploymentProviders = {
   vercel: { configFile: 'vercel.json', buildCommand: 'npm run build', outputDirectory: 'dist' },
   netlify: { configFile: 'netlify.toml', buildCommand: 'npm run build', outputDirectory: 'dist' },
@@ -84,6 +112,79 @@ app.use('/api/deployments', deploymentsRouter);
 app.use('/api/memories', memoriesRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api/logs', logsRouter);
+app.use('/api/build', buildRouter);
+app.use('/api/git', gitRouter);
+app.use('/api/search', searchRouter);
+app.use('/api/sync', syncRouter);
+app.use('/api/vault', vaultRouter);
+app.use('/api/analytics', analyticsRouter);
+
+// Exception logs mapping
+process.on('uncaughtException', (err) => {
+  console.error('[Uncaught Exception]', err);
+  logBackendError(err.message, err.stack);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Unhandled Rejection]', reason);
+  logBackendError(String(reason), '');
+});
+
+
+// Run Sandbox Command Route
+app.post('/api/sandbox/run', async (req, res) => {
+  try {
+    const { command } = req.body;
+    if (!command) {
+      return res.status(400).json({ error: 'command is required' });
+    }
+    const sandbox = new SandboxRuntime(workspaceRoot);
+    let logBuffer = '';
+    const result = await sandbox.runCommand(command, (log) => {
+      logBuffer += log;
+    });
+    res.json({ result, logs: logBuffer });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Runtime Background Process Routes
+app.get('/api/runtime/processes', (req, res) => {
+  res.json({ processes: processManager.getProcessList() });
+});
+
+app.post('/api/runtime/start', async (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    void processManager.startProcess(id).catch(() => {});
+    res.json({ ok: true, message: `Process ${id} is booting` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/runtime/stop', (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    processManager.stopProcess(id);
+    res.json({ ok: true, message: `Process ${id} stopped` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/runtime/restart', async (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    void processManager.restartProcess(id).catch(() => {});
+    res.json({ ok: true, message: `Process ${id} is restarting` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Maintain Legacy Health Check
 app.get('/api/health', (_req, res) => {
@@ -218,7 +319,9 @@ app.post('/api/fs/workspace', async (req, res) => {
     const resolved = path.resolve(newPath);
     await fs.mkdir(resolved, { recursive: true });
     workspaceRoot = resolved;
+    processManager.workspaceRoot = resolved;
     memoryEngine = new FileMemoryEngine(workspaceRoot);
+    app.set('memoryEngine', memoryEngine);
     console.log(`[Server] Dynamic workspace root updated to: ${workspaceRoot}`);
     res.json({ ok: true, workspaceRoot });
   } catch (error) {
@@ -251,7 +354,7 @@ app.post('/api/fs/delete', async (req, res) => {
 });
 
 // Initialize WebSocket gateway at /api/ws
-initializeWebSocketGateway(server, workspaceRoot);
+initializeWebSocketGateway(server, workspaceRoot, processManager);
 
 // Maintain Legacy websocket at /api/ai/ws
 const wssLegacy = new WebSocketServer({ noServer: true });

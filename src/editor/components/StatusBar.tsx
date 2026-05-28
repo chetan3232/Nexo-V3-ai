@@ -1,4 +1,4 @@
-import { GitBranch, AlertCircle, AlertTriangle, CheckCircle2, Zap, Bell } from 'lucide-react';
+import { GitBranch, AlertCircle, AlertTriangle, CheckCircle2, Zap, Bell, Cloud } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 
 type Props = {
@@ -6,10 +6,11 @@ type Props = {
   sidebarOpen?: boolean;
 };
 
-function StatusItem({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+function StatusItem({ children, onClick, title }: { children: React.ReactNode; onClick?: () => void; title?: string }) {
   return (
     <div
       onClick={onClick}
+      title={title}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -111,6 +112,12 @@ export function StatusBar({ aiPanelOpen, sidebarOpen }: Props) {
             </StatusItem>
           </>
         )}
+
+        <StatusItem onClick={() => {
+          window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-cloud' } }));
+        }} title="Cloud Projects & Sync">
+          <Cloud size={11} />
+        </StatusItem>
 
         <StatusItem onClick={() => {}}>
           <Bell size={11} />

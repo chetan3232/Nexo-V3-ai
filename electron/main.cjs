@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, session, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, shell, session, ipcMain, dialog, Menu } = require('electron');
 const path = require('node:path');
 const os   = require('node:os');
 const child_process = require('node:child_process');
@@ -130,6 +130,44 @@ function setupTerminalIpc(window) {
       shellProcesses.delete(id);
     }
   });
+
+  // Native Window and File Dialog Actions
+  ipcMain.handle('save-file-dialog', async (event, defaultPath) => {
+    const result = await dialog.showSaveDialog(window, {
+      defaultPath,
+      title: 'Save File As',
+      buttonLabel: 'Save',
+    });
+    if (result.canceled || !result.filePath) return null;
+    return result.filePath;
+  });
+
+  ipcMain.on('window-minimize', () => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (win) win.minimize();
+  });
+
+  ipcMain.on('window-maximize', () => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (win) {
+      if (win.isMaximized()) win.unmaximize();
+      else win.maximize();
+    }
+  });
+
+  ipcMain.on('window-close', () => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (win) win.close();
+  });
+
+  ipcMain.on('window-fullscreen', () => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (win) win.setFullScreen(!win.isFullScreen());
+  });
+
+  ipcMain.on('new-window', () => {
+    createWindow();
+  });
 }
 
 function createWindow() {
@@ -166,6 +204,9 @@ function createWindow() {
   // Start bidirectional terminal streams
   setupTerminalIpc(window);
 
+  // Initialize Native Application Menu Bar
+  createApplicationMenu(window);
+
   window.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
@@ -200,3 +241,116 @@ app.on('window-all-closed', () => {
   shellProcesses.clear();
   if (process.platform !== 'darwin') app.quit();
 });
+
+function createApplicationMenu(window) {
+  const template = [
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New File',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => { window.webContents.send('menu-command', 'new-file'); }
+        },
+        {
+          label: 'New Window',
+          click: () => { window.webContents.send('menu-command', 'new-window'); }
+        },
+        { type: 'separator' },
+        {
+          label: 'Open Folder...',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => { window.webContents.send('menu-command', 'open-folder'); }
+        },
+        { type: 'separator' },
+        {
+          label: 'Save',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => { window.webContents.send('menu-command', 'save-file'); }
+        },
+        {
+          label: 'Save As...',
+          accelerator: 'CmdOrCtrl+Shift+S',
+          click: () => { window.webContents.send('menu-command', 'save-as'); }
+        },
+        { type: 'separator' },
+        {
+          label: 'Auto Save',
+          type: 'checkbox',
+          checked: true,
+          click: (menuItem) => { window.webContents.send('menu-command', 'toggle-auto-save', menuItem.checked); }
+        },
+        { type: 'separator' },
+        {
+          label: 'Exit',
+          role: 'quit'
+        }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { label: 'Undo', accelerator: 'CmdOrCtrl+Z', click: () => { window.webContents.send('menu-command', 'undo'); } },
+        { label: 'Redo', accelerator: 'CmdOrCtrl+Y', click: () => { window.webContents.send('menu-command', 'redo'); } },
+        { type: 'separator' },
+        { label: 'Cut', role: 'cut' },
+        { label: 'Copy', role: 'copy' },
+        { label: 'Paste', role: 'paste' },
+        { label: 'Select All', role: 'selectAll' },
+        { type: 'separator' },
+        { label: 'Find', accelerator: 'CmdOrCtrl+F', click: () => { window.webContents.send('menu-command', 'find'); } },
+        { label: 'Replace', accelerator: 'CmdOrCtrl+H', click: () => { window.webContents.send('menu-command', 'replace'); } }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+B', click: () => { window.webContents.send('menu-command', 'toggle-sidebar'); } },
+        { label: 'Toggle Terminal', accelerator: 'CmdOrCtrl+J', click: () => { window.webContents.send('menu-command', 'toggle-terminal'); } },
+        { label: 'Toggle AI Panel', accelerator: 'CmdOrCtrl+Shift+A', click: () => { window.webContents.send('menu-command', 'toggle-ai'); } },
+        { type: 'separator' },
+        { label: 'Toggle Minimap', click: () => { window.webContents.send('menu-command', 'toggle-minimap'); } },
+        { type: 'separator' },
+        { label: 'Zoom In', accelerator: 'CmdOrCtrl+=', click: () => { window.webContents.send('menu-command', 'zoom-in'); } },
+        { label: 'Zoom Out', accelerator: 'CmdOrCtrl+-', click: () => { window.webContents.send('menu-command', 'zoom-out'); } },
+        { type: 'separator' },
+        { label: 'Toggle Fullscreen', role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Go',
+      submenu: [
+        { label: 'Go to File', accelerator: 'CmdOrCtrl+P', click: () => { window.webContents.send('menu-command', 'go-to-file'); } },
+        { label: 'Go to Line', accelerator: 'CmdOrCtrl+G', click: () => { window.webContents.send('menu-command', 'go-to-line'); } },
+        { type: 'separator' },
+        { label: 'Next Tab', accelerator: 'Ctrl+Tab', click: () => { window.webContents.send('menu-command', 'next-tab'); } }
+      ]
+    },
+    {
+      label: 'Run',
+      submenu: [
+        { label: 'Run Project', click: () => { window.webContents.send('menu-command', 'run-project'); } },
+        { label: 'Stop Project', click: () => { window.webContents.send('menu-command', 'stop-project'); } },
+        { label: 'Restart Project', click: () => { window.webContents.send('menu-command', 'restart-project'); } },
+        { type: 'separator' },
+        { label: 'Run Current File', click: () => { window.webContents.send('menu-command', 'run-current-file'); } }
+      ]
+    },
+    {
+      label: 'Terminal',
+      submenu: [
+        { label: 'New Terminal', accelerator: 'Ctrl+`', click: () => { window.webContents.send('menu-command', 'new-terminal'); } }
+      ]
+    },
+    {
+      label: 'Help',
+      submenu: [
+        { label: 'Documentation', click: () => { shell.openExternal('https://github.com/chetan3232/Nexo-V3-ai'); } },
+        { label: 'About', click: () => { window.webContents.send('menu-command', 'about'); } }
+      ]
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
+}

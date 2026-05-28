@@ -10,6 +10,12 @@ type IdeLayoutState = {
   setSidebarCollapsed: (collapsed: boolean) => void;
   bottomPanelCollapsed: boolean;
   setBottomPanelCollapsed: (collapsed: boolean) => void;
+  aiPanelOpen: boolean;
+  setAiPanelOpen: (open: boolean) => void;
+  previewOpen: boolean;
+  setPreviewOpen: (open: boolean) => void;
+  previewUrl: string;
+  setPreviewUrl: (url: string) => void;
 };
 
 export const useIdeLayoutStore = create<IdeLayoutState>()(
@@ -23,6 +29,12 @@ export const useIdeLayoutStore = create<IdeLayoutState>()(
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       bottomPanelCollapsed: false,
       setBottomPanelCollapsed: (collapsed) => set({ bottomPanelCollapsed: collapsed }),
+      aiPanelOpen: true,
+      setAiPanelOpen: (open) => set({ aiPanelOpen: open }),
+      previewOpen: false,
+      setPreviewOpen: (open) => set({ previewOpen: open }),
+      previewUrl: 'http://localhost:5173',
+      setPreviewUrl: (url) => set({ previewUrl: url }),
     }),
     {
       name: 'nexo-ide-layout-v3',
@@ -31,6 +43,9 @@ export const useIdeLayoutStore = create<IdeLayoutState>()(
         mainPanelSizes: state.mainPanelSizes,
         sidebarCollapsed: state.sidebarCollapsed,
         bottomPanelCollapsed: state.bottomPanelCollapsed,
+        aiPanelOpen: state.aiPanelOpen,
+        previewOpen: state.previewOpen,
+        previewUrl: state.previewUrl,
       }),
     }
   )

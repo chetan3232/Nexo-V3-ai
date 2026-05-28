@@ -2,10 +2,11 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, FileCode2, Settings, TerminalSquare, Sparkles,
-  GitBranch, ChevronRight, Hash,
+  GitBranch, ChevronRight, Hash, Cloud
 } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useFileSystemStore } from '@/store/useFileSystemStore';
+import { useTerminalStore } from '@/store/useTerminalStore';
 
 type CommandItem = {
   id: string;
@@ -49,13 +50,120 @@ export function CommandPalette({ open, onClose }: Props) {
   }, [open]);
 
   const commands: CommandItem[] = [
-    { id: 'new-file',    label: 'New File',           category: 'File',     icon: FileCode2,     shortcut: 'Ctrl+N' },
-    { id: 'save-all',    label: 'Save All',           category: 'File',     icon: FileCode2,     shortcut: 'Ctrl+Shift+S' },
-    { id: 'settings',    label: 'Open Settings',      category: 'Preferences', icon: Settings,   shortcut: 'Ctrl+,' },
-    { id: 'terminal',    label: 'New Terminal',        category: 'Terminal', icon: TerminalSquare, shortcut: 'Ctrl+`' },
-    { id: 'ai',          label: 'Ask Nexo AI',         category: 'AI',       icon: Sparkles,      shortcut: 'Ctrl+Shift+A' },
-    { id: 'git-commit',  label: 'Git: Commit',         category: 'Git',      icon: GitBranch },
-    { id: 'git-push',    label: 'Git: Push',           category: 'Git',      icon: GitBranch },
+    {
+      id: 'new-file',
+      label: 'New File',
+      category: 'File',
+      icon: FileCode2,
+      shortcut: 'Ctrl+N',
+      action: () => {
+        let nextNum = 1;
+        while (useEditorStore.getState().files[`untitled-${nextNum}.tsx`]) {
+          nextNum++;
+        }
+        const newPath = `untitled-${nextNum}.tsx`;
+        useEditorStore.getState().openFile(newPath);
+      }
+    },
+    {
+      id: 'save-all',
+      label: 'Save All',
+      category: 'File',
+      icon: FileCode2,
+      shortcut: 'Ctrl+Shift+S',
+      action: () => {
+        const { files, saveFile } = useEditorStore.getState();
+        Object.keys(files).forEach((path) => {
+          saveFile(path);
+        });
+      }
+    },
+    {
+      id: 'settings',
+      label: 'Open Settings',
+      category: 'Preferences',
+      icon: Settings,
+      shortcut: 'Ctrl+,',
+      action: () => {
+        window.dispatchEvent(new CustomEvent('nexo-editor-command', { detail: { command: 'toggle-settings' } }));
+      }
+    },
+    {
+      id: 'terminal',
+      label: 'New Terminal',
+      category: 'Terminal',
+      icon: TerminalSquare,
+      shortcut: 'Ctrl+`',
+      action: () => {
+        window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'new-terminal' } }));
+      }
+    },
+    {
+      id: 'ai',
+      label: 'Ask Nexo AI',
+      category: 'AI',
+      icon: Sparkles,
+      shortcut: 'Ctrl+Shift+A',
+      action: () => {
+        window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-ai' } }));
+      }
+    },
+    {
+      id: 'spotlight',
+      label: 'AI Spotlight Global Command',
+      category: 'AI',
+      icon: Sparkles,
+      shortcut: 'Ctrl+I',
+      action: () => {
+        window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-spotlight' } }));
+      }
+    },
+    {
+      id: 'cloud-sync',
+      label: 'Cloud Projects & Sync Manager',
+      category: 'Cloud',
+      icon: Cloud,
+      shortcut: 'Ctrl+Shift+U',
+      action: () => {
+        window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-cloud' } }));
+      }
+    },
+    {
+      id: 'shortcuts-reference',
+      label: 'Keyboard Shortcuts Reference',
+      category: 'Help',
+      icon: Settings,
+      shortcut: 'Ctrl+Shift+?',
+      action: () => {
+        window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-shortcuts' } }));
+      }
+    },
+    {
+      id: 'git-commit',
+      label: 'Git: Commit',
+      category: 'Git',
+      icon: GitBranch,
+      action: () => {
+        window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-terminal' } }));
+        const activeId = useTerminalStore.getState().activeId;
+        if (activeId && (window as any).nexoDesktop) {
+          (window as any).nexoDesktop.sendTerminalInput(activeId, 'git commit -m "update"\r');
+        }
+      }
+    },
+    {
+      id: 'git-push',
+      label: 'Git: Push',
+      category: 'Git',
+      icon: GitBranch,
+      action: () => {
+        window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-terminal' } }));
+        const activeId = useTerminalStore.getState().activeId;
+        if (activeId && (window as any).nexoDesktop) {
+          (window as any).nexoDesktop.sendTerminalInput(activeId, 'git push\r');
+        }
+      }
+    },
     ...allFiles.map((f) => ({
       id: `open-${f}`,
       label: f.split('/').pop() ?? f,

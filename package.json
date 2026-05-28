@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "node server/index.js",
+    "dev:server": "node backend/index.js",
     "build": "vite build",
     "preview": "vite preview",
     "deploy:vercel": "node scripts/deploy.mjs vercel",

@@ -8,8 +8,11 @@ import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
 import { useTerminalStore } from '@/store/useTerminalStore';
+import { ProcessManagerPanel } from './ProcessManagerPanel';
+import { AnalyticsPanel } from '@/analytics/AnalyticsPanel';
 
-type PanelTab = 'terminal' | 'problems' | 'output' | 'debug';
+type PanelTab = 'terminal' | 'processes' | 'analytics' | 'problems' | 'output' | 'debug';
+
 
 const problemLines = [
   { severity: 'error',   file: 'src/editor/CodeEditor.tsx', line: 42, msg: "Cannot find name 'Monaco'." },
@@ -32,10 +35,13 @@ type Props = {
 
 const tabs: { id: PanelTab; label: string }[] = [
   { id: 'terminal', label: 'TERMINAL' },
+  { id: 'processes', label: 'PROCESSES' },
+  { id: 'analytics', label: 'ANALYTICS & MONITOR' },
   { id: 'problems', label: 'PROBLEMS' },
   { id: 'output',   label: 'OUTPUT' },
   { id: 'debug',    label: 'DEBUG CONSOLE' },
 ];
+
 
 function RealTerminal({ id }: { id: string }) {
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -388,6 +394,17 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
                 </div>
               )
             )}
+
+            {/* PROCESSES */}
+            {activeTab === 'processes' && (
+              <ProcessManagerPanel />
+            )}
+
+            {/* ANALYTICS */}
+            {activeTab === 'analytics' && (
+              <AnalyticsPanel />
+            )}
+
 
             {/* PROBLEMS */}
             {activeTab === 'problems' && (

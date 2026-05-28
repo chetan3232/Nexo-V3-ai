@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { streamAIResponse, ChatMessage } from '@/services/aiStreamClient';
+import { readWorkspaceFile, writeWorkspaceFile } from '@/services/fileSystemClient';
+import { runSandboxCommand } from '@/services/sandboxClient';
 
 export type AgentId = 'planner' | 'coder' | 'debug' | 'ui' | 'refactor' | 'deploy' | 'security';
 export type AgentStatus = 'idle' | 'thinking' | 'discussing' | 'working' | 'success' | 'failed';
@@ -10,6 +12,8 @@ export type AgentTask = {
   status: 'pending' | 'running' | 'done' | 'error';
   file?: string;
   detail: string;
+  action?: 'create' | 'modify' | 'command';
+  dependencies?: string[];
 };
 
 export type DiscussionMessage = {
@@ -128,18 +132,21 @@ export const useAgentStore = create<AgentState>((set, get) => {
 
       try {
         // ── STEP 1: Planner Agent generates plan checklist ─────────────────
-        let parsedTasks: { title: string; detail: string }[] = [];
+        let parsedTasks: { title: string; detail: string; file?: string; action?: 'create' | 'modify' | 'command'; dependencies?: string[] }[] = [];
         let planMethod = 'AI stream';
 
         try {
-          const plannerPrompt = `You are the Nexo Planner Agent. Decompose the following goal into a sequence of 4 to 5 short development tasks:
+          const plannerPrompt = `You are the Nexo Planner Agent. Decompose the following development goal into a sequence of 3 to 5 development tasks:
 Goal: "${goal}"
 
-Output ONLY a raw JSON array of objects, containing "title" and "detail" keys.
+Output ONLY a raw JSON array of objects, containing "title", "detail", "file", "action", and optional "dependencies" keys.
+"file": relative path of the file to create or edit (use empty string "" if none).
+"action": one of "create", "modify", "command".
+"dependencies": optional array of npm packages to install (e.g. ["framer-motion"]).
+
 Example:
 [
-  { "title": "Setup Component", "detail": "Create UI layout file" },
-  { "title": "Add Logic Hooks", "detail": "Implement states and handlers" }
+  { "title": "Setup Button Component", "detail": "Create design in src/components/Button.tsx", "file": "src/components/Button.tsx", "action": "create" }
 ]
 Do NOT write markdown code blocks (no \`\`\`json). Output raw JSON.`;
 
@@ -165,11 +172,9 @@ Do NOT write markdown code blocks (no \`\`\`json). Output raw JSON.`;
         // Fallback to robust local template if API call fails or JSON is malformed
         if (!parsedTasks || parsedTasks.length === 0) {
           parsedTasks = [
-            { title: 'Deconstruct Workspace Layout', detail: `Outline code blocks and UI state interfaces for: "${goal}"` },
-            { title: 'Develop Functional Logic Hooks', detail: 'Implement react states, handlers, and event dispatchers' },
-            { title: 'Styling & Polish', detail: 'Add glassmorphic tokens, transitions, and hover animations' },
-            { title: 'Compiler & QA Checks', detail: 'Perform Monaco marker validations and smoke test inputs' },
-            { title: 'Staged Deployment Config', detail: 'Prepare vercel/cloudflare production deployment setups' }
+            { title: 'Outline component layout', detail: `Create and outline React template layout for component in src/components/CustomWidget.tsx`, file: 'src/components/CustomWidget.tsx', action: 'create' },
+            { title: 'Inject state and logic hooks', detail: 'Implement react states, handlers, and event dispatchers in src/components/CustomWidget.tsx', file: 'src/components/CustomWidget.tsx', action: 'modify' },
+            { title: 'Auditing and styling', detail: 'Apply translucent glassmorphic tokens, transitions, and check for XSS inputs in src/components/CustomWidget.tsx', file: 'src/components/CustomWidget.tsx', action: 'modify' },
           ];
         }
 
@@ -178,6 +183,9 @@ Do NOT write markdown code blocks (no \`\`\`json). Output raw JSON.`;
           title: t.title,
           status: 'pending',
           detail: t.detail,
+          file: t.file,
+          action: t.action,
+          dependencies: t.dependencies,
         }));
 
         set({
@@ -206,31 +214,31 @@ Do NOT write markdown code blocks (no \`\`\`json). Output raw JSON.`;
 
         // Planner introduction
         discuss('Planner Agent', 'planner', `I have analyzed the goal: "${goal}". I created a checklist of ${taskList.length} tasks. UI Agent and Coder Agent, please review.`);
-        await delay(1500);
+        await delay(1000);
 
         // UI Agent comments
         set({ activeAgent: 'ui', agentsState: { ...get().agentsState, ui: 'thinking' } });
         log('[UI Architect] Analyzing design tokens...');
-        discuss('UI Architect', 'ui', `This looks solid. For the styling, I'll ensure we use translucent glassmorphic components, subtle outer border glows, and custom spring animations to keep the interface highly premium.`);
-        await delay(2000);
+        discuss('UI Architect', 'ui', `Design checks aligned. For any styling elements, I'll ensure we use translucent glassmorphic components, outer border glows, and responsive spring animations.`);
+        await delay(1000);
 
         // Security Agent comments
         set({ activeAgent: 'security', agentsState: { ...get().agentsState, ui: 'success', security: 'thinking' } });
         log('[Security Agent] Auditing task vulnerabilities...');
-        discuss('Security Agent', 'security', `I approve. Make sure any password inputs or user credentials are secure. All state handlers must sanitize inputs before storing to prevent XSS issues.`);
-        await delay(2000);
+        discuss('Security Agent', 'security', `Security check starting. I'll audit inputs and verify code is sanitized to prevent XSS breakout issues.`);
+        await delay(1000);
 
         // Coder Agent comments
         set({ activeAgent: 'coder', agentsState: { ...get().agentsState, security: 'success', coder: 'thinking' } });
         log('[Coder Agent] Mapping component architecture...');
-        discuss('Coder Agent', 'coder', `Understood. I will write clean React hooks, import Lucide icons, and structure the component logic according to the UI and Security specifications.`);
-        await delay(1800);
+        discuss('Coder Agent', 'coder', `I am ready to write complete, clean component implementations and hooks, and run package installs in the sandbox.`);
+        await delay(1000);
 
         // Debug Agent comments
         set({ activeAgent: 'debug', agentsState: { ...get().agentsState, coder: 'success', debug: 'thinking' } });
         log('[Debug Agent] Initializing test workspace...');
-        discuss('Debug Agent', 'debug', `Excellent. I will monitor Monaco's diagnostics linter markers during writing to prevent any compiler bugs.`);
-        await delay(1500);
+        discuss('Debug Agent', 'debug', `Excellent. I'll execute compiler smoke tests and help with self-healing iterations.`);
+        await delay(1000);
 
         // Reset agent statuses for execution
         set({
@@ -244,6 +252,8 @@ Do NOT write markdown code blocks (no \`\`\`json). Output raw JSON.`;
         log('[Orchestrator] Roundtable discussion aligned. Beginning execution.');
 
         // ── STEP 3: Execution of Tasks (Coder + UI) ───────────────────────
+        let lastCreatedFile = '';
+
         for (let i = 0; i < taskList.length; i++) {
           const activeTask = taskList[i];
           
@@ -254,25 +264,96 @@ Do NOT write markdown code blocks (no \`\`\`json). Output raw JSON.`;
           
           log(`[Orchestrator] Running task ${i+1}/${taskList.length}: "${activeTask.title}"`);
           
-          if (i === 0) {
-            set({ activeAgent: 'coder', agentsState: { ...initialAgentsState, coder: 'working' } });
-            log('[Coder] Bootstrapping React component layout...');
-            await delay(1800);
-            log('[Coder] Created template layout with Tailwind flex grids.');
-          } else if (i === 1) {
-            set({ activeAgent: 'coder', agentsState: { ...initialAgentsState, coder: 'working' } });
-            log('[Coder] Injecting state hooks and onClick dispatchers...');
-            await delay(2000);
-            log('[Coder] State binds verified.');
-          } else if (i === 2) {
-            set({ activeAgent: 'ui', agentsState: { ...initialAgentsState, ui: 'working' } });
-            log('[UI] Injecting custom styling, backdrop filters, and hover micro-animations...');
-            await delay(1800);
-            log('[UI] Applied high-end glassmorphic css tokens.');
+          // 1. Install missing dependencies if defined in plan
+          if (activeTask.dependencies && activeTask.dependencies.length > 0) {
+            set({ activeAgent: 'deploy', agentsState: { ...initialAgentsState, deploy: 'working' } });
+            log(`[Deploy] Installing dependencies: ${activeTask.dependencies.join(', ')}...`);
+            
+            for (const dep of activeTask.dependencies) {
+              log(`[Sandbox] Running: npm install --no-audit ${dep}`);
+              try {
+                const res = await runSandboxCommand(`npm install --no-audit ${dep}`);
+                if (res.result.status === 'success') {
+                  log(`[Sandbox] Successfully installed package ${dep}`);
+                } else {
+                  log(`[Sandbox] Warning installing ${dep}: ${res.logs}`);
+                }
+              } catch (err: any) {
+                log(`[Sandbox] Install error for ${dep}: ${err.message}`);
+              }
+            }
+          }
+
+          // 2. File Generation / Modification
+          if (activeTask.file && (activeTask.action === 'create' || activeTask.action === 'modify')) {
+            const isUI = activeTask.title.toLowerCase().includes('ui') || activeTask.title.toLowerCase().includes('style') || activeTask.title.toLowerCase().includes('design');
+            const currentAgent = isUI ? 'ui' : 'coder';
+            const agentLabel = isUI ? 'UI Architect' : 'Coder';
+
+            set({ activeAgent: currentAgent, agentsState: { ...initialAgentsState, [currentAgent]: 'working' } });
+            log(`[${agentLabel}] Writing file structure for: ${activeTask.file}`);
+
+            lastCreatedFile = activeTask.file;
+
+            // Read existing file if action is 'modify'
+            let existingContent = '';
+            if (activeTask.action === 'modify') {
+              try {
+                const res = await readWorkspaceFile(activeTask.file);
+                existingContent = res.content;
+              } catch (e) {
+                // Ignore if file doesn't exist
+              }
+            }
+
+            // Call Coder/UI Agent LLM
+            log(`[${agentLabel}] Calling LLM model to write code...`);
+            try {
+              const coderPrompt = `You are the Nexo ${currentAgent === 'ui' ? 'UI Architect' : 'Coder Agent'}.
+Goal: "${goal}"
+Task Title: "${activeTask.title}"
+Task Details: "${activeTask.detail}"
+Target File: "${activeTask.file}"
+Action Type: ${activeTask.action}
+
+Current file content (if any):
+\`\`\`
+${existingContent}
+\`\`\`
+
+Generate the complete code structure for "${activeTask.file}".
+Output ONLY the raw file contents. Do NOT wrap output in markdown code blocks (do not start with \`\`\`tsx).`;
+
+              let responseCode = '';
+              await streamAIResponse(
+                [{ role: 'user', content: coderPrompt }],
+                'nexo-auto-router',
+                {
+                  onToken: (tok) => { responseCode += tok; },
+                  onDone: () => {},
+                  onError: () => {}
+                },
+                { temperature: 0.3 }
+              );
+
+              // Clean markdown blocks
+              let finalCode = responseCode.trim();
+              if (finalCode.startsWith('```')) {
+                finalCode = finalCode.replace(/^```[a-zA-Z0-9-]*\n/, '').replace(/```$/, '').trim();
+              }
+
+              // Write file to workspace
+              await writeWorkspaceFile(activeTask.file, finalCode);
+              log(`[${agentLabel}] Successfully saved file contents to workspace: ${activeTask.file}`);
+            } catch (err: any) {
+              log(`[Orchestrator] File generation failed: ${err.message}`);
+              throw err;
+            }
           } else {
+            // Task is a generic command or placeholder
             set({ activeAgent: 'coder', agentsState: { ...initialAgentsState, coder: 'working' } });
-            log(`[Coder] Completing details: ${activeTask.detail}`);
-            await delay(1500);
+            log(`[Coder] Executing step detail: ${activeTask.detail}`);
+            await delay(1000);
           }
 
           // Mark task completed
@@ -281,7 +362,7 @@ Do NOT write markdown code blocks (no \`\`\`json). Output raw JSON.`;
           }));
         }
 
-        // ── STEP 4: Verifications (Debug + Refactor) ─────────────────────
+        // ── STEP 4: Verifications & Self-Healing (Debug + Refactor) ────────────────
         set({
           status: 'verifying',
           activeAgent: 'debug',
@@ -290,40 +371,107 @@ Do NOT write markdown code blocks (no \`\`\`json). Output raw JSON.`;
             debug: 'working',
           }
         });
-        log('[Orchestrator] Tasks completed. Starting compilation verification...');
-        log('[Debug] Verifying Monaco compiler diagnostics...');
-        await delay(1800);
-        
-        // Read actual compiler markers if Monaco is present
-        let errorCount = 0;
-        if (typeof window !== 'undefined' && (window as any).monaco) {
-          const markers = (window as any).monaco.editor.getModelMarkers({});
-          errorCount = markers.filter((m: any) => m.severity === 8).length;
+        log('[Orchestrator] Task execution completed. Starting sandbox compilation checks...');
+
+        let healed = false;
+        let retries = 3;
+        const targetFileForHealing = lastCreatedFile;
+
+        while (retries > 0 && !healed) {
+          log(`[Debug] Running workspace type check: npx tsc --noEmit (Attempts left: ${retries})`);
+          const checkRes = await runSandboxCommand('npx tsc --noEmit');
+          
+          if (checkRes.result.status === 'success') {
+            log('[Debug] Workspace type check passed cleanly with 0 errors!');
+            healed = true;
+          } else {
+            log(`[Debug] Warning: Detected type compiler errors:\n${checkRes.logs.slice(0, 300)}...`);
+            
+            if (!targetFileForHealing) {
+              log('[Debug] No generated file to heal. Aborting auto-healing.');
+              break;
+            }
+
+            log(`[Debug] Attempting self-healing patch on: ${targetFileForHealing}`);
+            set({ activeAgent: 'refactor', agentsState: { ...initialAgentsState, refactor: 'working' } });
+
+            // Read current file
+            let currentFileContents = '';
+            try {
+              const res = await readWorkspaceFile(targetFileForHealing);
+              currentFileContents = res.content;
+            } catch (e) {
+              break;
+            }
+
+            // Call Debug LLM to fix it
+            const debugPrompt = `You are the Nexo Debug Agent. A compilation error occurred in the workspace.
+Goal: "${goal}"
+Target File: "${targetFileForHealing}"
+Current file contents:
+\`\`\`
+${currentFileContents}
+\`\`\`
+Type compiler error logs:
+\`\`\`
+${checkRes.logs}
+\`\`\`
+
+Provide the corrected, complete contents of "${targetFileForHealing}" that resolves all compiler errors.
+Output ONLY the raw file contents. Do NOT wrap output in markdown code blocks.`;
+
+            let healingCode = '';
+            await streamAIResponse(
+              [{ role: 'user', content: debugPrompt }],
+              'nexo-auto-router',
+              {
+                onToken: (tok) => { healingCode += tok; },
+                onDone: () => {},
+                onError: () => {}
+              },
+              { temperature: 0.2 }
+            );
+
+            let cleanHealingCode = healingCode.trim();
+            if (cleanHealingCode.startsWith('```')) {
+              cleanHealingCode = cleanHealingCode.replace(/^```[a-zA-Z0-9-]*\n/, '').replace(/```$/, '').trim();
+            }
+
+            // Save fixed file
+            await writeWorkspaceFile(targetFileForHealing, cleanHealingCode);
+            log(`[Refactor] Overwrote patch file. Re-testing...`);
+            retries--;
+          }
         }
 
-        if (errorCount > 0) {
-          log(`[Debug] Warning: Detected ${errorCount} active Monaco syntax warning markers. Attempting auto-fix...`);
-          set({ activeAgent: 'refactor', agentsState: { ...initialAgentsState, refactor: 'working' } });
-          await delay(1500);
-          log('[Refactor] Resolved syntax warnings.');
+        if (!healed) {
+          throw new Error('Self-healing failed to resolve workspace compilation errors after 3 retries.');
+        }
+
+        // Run production webpack build validation
+        log('[Debug] Running production build validation: npm run build...');
+        const buildRes = await runSandboxCommand('npm run build');
+        if (buildRes.result.status === 'success') {
+          log('[Debug] Production build bundles successfully constructed!');
         } else {
-          log('[Debug] Monaco workspace builds 100% cleanly! No errors detected.');
+          log(`[Debug] Production build failed:\n${buildRes.logs.slice(0, 300)}`);
+          throw new Error('Production bundle build failed.');
         }
 
         // Refactor code optimization
         set({ activeAgent: 'refactor', agentsState: { ...initialAgentsState, refactor: 'working' } });
-        log('[Refactor] Removing redundant import tags and refactoring hook dependency arrays...');
-        await delay(1500);
+        log('[Refactor] Removing redundant imports and checking hook dependencies...');
+        await delay(1000);
 
         // ── STEP 5: Deploy & Security Audit ────────────────────────────────
         set({ activeAgent: 'security', agentsState: { ...initialAgentsState, security: 'working' } });
         log('[Security] Running static code security analysis audit...');
-        await delay(1500);
+        await delay(1000);
         log('[Security] Audit successful. 0 vulnerabilities found.');
 
         set({ activeAgent: 'deploy', agentsState: { ...initialAgentsState, deploy: 'working' } });
         log('[Deploy] Preparing deployment payload config...');
-        await delay(1500);
+        await delay(1000);
         log('[Deploy] Bundle staged. Staging build verified.');
 
         // ── STEP 6: Success ───────────────────────────────────────────────

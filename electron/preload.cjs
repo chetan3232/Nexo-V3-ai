@@ -49,4 +49,30 @@ contextBridge.exposeInMainWorld('nexoDesktop', {
   selectFolder: () => {
     return ipcRenderer.invoke('select-folder');
   },
+  minimizeWindow: () => {
+    ipcRenderer.send('window-minimize');
+  },
+  maximizeWindow: () => {
+    ipcRenderer.send('window-maximize');
+  },
+  closeWindow: () => {
+    ipcRenderer.send('window-close');
+  },
+  toggleFullscreen: () => {
+    ipcRenderer.send('window-fullscreen');
+  },
+  newWindow: () => {
+    ipcRenderer.send('new-window');
+  },
+  saveFileDialog: (defaultPath) => {
+    return ipcRenderer.invoke('save-file-dialog', defaultPath);
+  },
+  onMenuCommand: (callback) => {
+    const subscription = (event, command, ...args) => callback(command, ...args);
+    ipcRenderer.on('menu-command', subscription);
+    return () => {
+      ipcRenderer.removeListener('menu-command', subscription);
+    };
+  },
 });
+

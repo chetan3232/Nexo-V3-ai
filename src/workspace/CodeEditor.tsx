@@ -351,6 +351,95 @@ CONTINUATION:`;
     }
   };
 
+  useEffect(() => {
+    if (!editorInstance || !monacoInstance) return;
+
+    const handleEditorCommand = (e: CustomEvent<{ command: string; payload?: any }>) => {
+      const { command, payload } = e.detail;
+      switch (command) {
+        case 'insert-text': {
+          const selection = editorInstance.getSelection();
+          if (selection && payload) {
+            editorInstance.executeEdits('insert-api', [{
+              range: selection,
+              text: payload,
+              forceMoveMarkers: true
+            }]);
+          }
+          break;
+        }
+        case 'undo':
+          editorInstance.trigger('menu', 'undo', null);
+          break;
+        case 'redo':
+          editorInstance.trigger('menu', 'redo', null);
+          break;
+        case 'cut':
+          document.execCommand('cut');
+          break;
+        case 'copy':
+          document.execCommand('copy');
+          break;
+        case 'paste':
+          navigator.clipboard.readText().then((text) => {
+            const selection = editorInstance.getSelection();
+            if (selection) {
+              editorInstance.executeEdits('paste-menu', [{
+                range: selection,
+                text: text,
+                forceMoveMarkers: true
+              }]);
+            }
+          }).catch(() => {
+            document.execCommand('paste');
+          });
+          break;
+        case 'select-all': {
+          const model = editorInstance.getModel();
+          if (model) {
+            const lineCount = model.getLineCount();
+            const lastLineLength = model.getLineContent(lineCount).length;
+            editorInstance.setSelection(new monacoInstance.Selection(
+              1, 1, lineCount, lastLineLength + 1
+            ));
+          }
+          break;
+        }
+        case 'find':
+          editorInstance.trigger('menu', 'actions.find', null);
+          break;
+        case 'replace':
+          editorInstance.trigger('menu', 'editor.action.startFindReplaceAction', null);
+          break;
+        case 'go-to-line': {
+          let targetLineStr = payload;
+          if (targetLineStr === undefined || targetLineStr === null) {
+            targetLineStr = prompt('Go to line (1-based):');
+          }
+          if (targetLineStr) {
+            const lineNum = parseInt(targetLineStr, 10);
+            if (!isNaN(lineNum)) {
+              editorInstance.setPosition({ lineNumber: lineNum, column: 1 });
+              editorInstance.revealLineInCenter(lineNum);
+              editorInstance.focus();
+            }
+          }
+          break;
+        }
+        case 'toggle-settings':
+          setSettingsOpen((o) => !o);
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('nexo-editor-command' as any, handleEditorCommand);
+    return () => {
+      window.removeEventListener('nexo-editor-command' as any, handleEditorCommand);
+    };
+  }, [editorInstance, monacoInstance]);
+
   const submitInlineAI = async () => {
     if (!inlineAIInput.trim() || inlineAISubmitting || !editorInstance || !monacoInstance || !inlineAISelection) return;
 
