@@ -1,25 +1,27 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ActivityBar } from './components/ActivityBar';
-import { Sidebar } from './components/Sidebar';
-import { EditorTabs } from './components/EditorTabs';
+import { ActivityBar } from '@/editor/components/ActivityBar';
+import { Sidebar } from '@/editor/components/Sidebar';
+import { EditorTabs } from '@/editor/components/EditorTabs';
 import { CodeEditor } from './CodeEditor';
-import { BottomPanel } from './components/BottomPanel';
-import { StatusBar } from './components/StatusBar';
-import { CommandPalette } from './components/CommandPalette';
-import { AIAssistantPanel } from './components/AIAssistantPanel';
-import { TitleBar } from './components/TitleBar';
+import { BottomPanel } from '@/editor/components/BottomPanel';
+import { StatusBar } from '@/editor/components/StatusBar';
+import { CommandPalette } from '@/editor/components/CommandPalette';
+import { AIAssistantPanel } from '@/editor/components/AIAssistantPanel';
+import { TitleBar } from '@/editor/components/TitleBar';
 import { useIdeLayoutStore } from '@/store/useIdeLayoutStore';
 import { useFileSystemStore } from '@/store/useFileSystemStore';
 import { useEditorStore } from '@/store/useEditorStore';
-import { LivePreview } from './components/LivePreview';
+import { LivePreview } from '@/editor/components/LivePreview';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useTerminalStore } from '@/store/useTerminalStore';
 import { writeWorkspaceFile } from '@/services/fileSystemClient';
-import { AISpotlight } from './components/AISpotlight';
-import { ShortcutsModal } from './components/ShortcutsModal';
-import { CloudProjectsModal } from './components/CloudProjectsModal';
-import { FloatingAIWidget } from './components/FloatingAIWidget';
+import { AISpotlight } from '@/editor/components/AISpotlight';
+import { ShortcutsModal } from '@/editor/components/ShortcutsModal';
+import { CloudProjectsModal } from '@/cloud/CloudProjectsModal';
+import { FloatingAIWidget } from '@/editor/components/FloatingAIWidget';
+import { ShieldAlert } from 'lucide-react';
+
 
 // ── Drag-resize handle ─────────────────────────────────────────────────────
 function ResizeHandle({
@@ -86,10 +88,53 @@ export function IdeWorkspace() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [cloudOpen, setCloudOpen]         = useState(false);
 
+  // Security Runtime Permission Gateway states
+  const [pendingPermission, setPendingPermission] = useState<{
+    reqId: string;
+    action: string;
+    details: any;
+  } | null>(null);
+  const securityWsRef = useRef<WebSocket | null>(null);
+
   // Pixel-based sizes for reliable layout
   const [sidebarW,  setSidebarW]  = useState(DEFAULT_SIDEBAR_W);
   const [aiW,       setAiW]       = useState(DEFAULT_AI_W);
   const [terminalH, setTerminalH] = useState(DEFAULT_TERMINAL_H);
+
+  // Connect to gateway for runtime security events
+  useEffect(() => {
+    const API_BASE = import.meta.env.VITE_NEXO_API_URL ?? 'http://localhost:8787';
+    const WS_BASE = API_BASE.replace(/^http/, 'ws') + '/api/ws';
+    const ws = new WebSocket(WS_BASE);
+    securityWsRef.current = ws;
+
+    ws.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.type === 'permission_request') {
+          setPendingPermission(payload);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
+
+  const handlePermissionResponse = (approved: boolean) => {
+    if (pendingPermission && securityWsRef.current) {
+      securityWsRef.current.send(JSON.stringify({
+        type: 'permission_response',
+        reqId: pendingPermission.reqId,
+        approved
+      }));
+      setPendingPermission(null);
+    }
+  };
+
 
   const {
     sidebarCollapsed,
@@ -552,6 +597,133 @@ export function IdeWorkspace() {
       <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <CloudProjectsModal isOpen={cloudOpen} onClose={() => setCloudOpen(false)} />
       <FloatingAIWidget />
+
+      {/* ── Security Permission Overlay ── */}
+      <AnimatePresence>
+        {pendingPermission && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}>
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              style={{
+                width: '450px',
+                background: 'rgba(17, 24, 39, 0.95)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 0 40px rgba(239, 68, 68, 0.15)',
+                borderRadius: '12px',
+                padding: '24px',
+                color: '#e2e8f0',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '36px', height: '36px', borderRadius: '50%',
+                  background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#ef4444',
+                }}>
+                  <ShieldAlert size={18} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#fca5a5' }}>
+                    Security Access Request
+                  </h3>
+                  <span style={{ fontSize: '11px', color: '#8b949e' }}>
+                    An isolated operation is requesting host machine permissions.
+                  </span>
+                </div>
+              </div>
+
+              <div style={{
+                background: '#0d1117',
+                border: '1px solid #21262d',
+                borderRadius: '6px',
+                padding: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+              }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#8b949e' }}>
+                  ACTION / TRIGGER:
+                </div>
+                <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#58a6ff', fontFamily: 'monospace' }}>
+                  {pendingPermission.action.toUpperCase()}
+                </div>
+
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#8b949e', marginTop: '6px' }}>
+                  OPERATION DETAILS:
+                </div>
+                <pre style={{
+                  margin: 0,
+                  fontSize: '11.5px',
+                  color: '#c9d1d9',
+                  fontFamily: 'monospace',
+                  background: '#161b22',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
+                  maxHeight: '120px',
+                  overflowY: 'auto'
+                }}>
+                  {JSON.stringify(pendingPermission.details, null, 2)}
+                </pre>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
+                <button
+                  onClick={() => handlePermissionResponse(false)}
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid #1f2937',
+                    color: '#ff7b72',
+                    borderRadius: '6px',
+                    padding: '8px 16px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+                >
+                  Block Execution
+                </button>
+                <button
+                  onClick={() => handlePermissionResponse(true)}
+                  style={{
+                    background: '#238636',
+                    border: '1px solid #308e41',
+                    color: '#ffffff',
+                    borderRadius: '6px',
+                    padding: '8px 16px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#2ea043'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = '#238636'; }}
+                >
+                  Allow Action
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+

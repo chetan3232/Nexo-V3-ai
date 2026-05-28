@@ -8,11 +8,11 @@ import { useFileSystemStore } from '@/store/useFileSystemStore';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useNotificationStore } from '@/store/useNotificationStore';
 import { streamAIResponse } from '@/services/aiStreamClient';
-import { ExplorerTree } from './ExplorerTree';
+import { ExplorerTree } from '@/explorer/ExplorerTree';
 import { DebuggerPanel } from './DebuggerPanel';
 import { AITeamPanel } from './AITeamPanel';
-import { TimeTravelPanel } from './TimeTravelPanel';
-import { BuildPanel } from './BuildPanel';
+import { TimeTravelPanel } from '@/git/TimeTravelPanel';
+import { BuildPanel } from '@/cloud/BuildPanel';
 
 const API_BASE = import.meta.env.VITE_NEXO_API_URL ?? 'http://localhost:8787';
 

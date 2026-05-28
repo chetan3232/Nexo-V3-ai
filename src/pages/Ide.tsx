@@ -1,4 +1,4 @@
-import { IdeWorkspace } from '@/editor/IdeWorkspace';
+import { IdeWorkspace } from '@/workspace/IdeWorkspace';
 import { NotificationToasts } from '@/components/NotificationToasts';
 
 const Ide = () => {

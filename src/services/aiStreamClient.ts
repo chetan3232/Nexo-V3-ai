@@ -677,6 +677,8 @@ async function streamNvidiaResponseDirect(
 
 // ── Unified Master Entrypoints ─────────────────────────────────────────────
 
+const API_BASE = (import.meta as any).env?.VITE_NEXO_API_URL ?? 'http://localhost:8787';
+
 export async function streamAIResponse(
   messages: ChatMessage[],
   modelId: string,
@@ -693,31 +695,69 @@ export async function streamAIResponse(
 
   const provider = getProviderForModel(activeModel);
 
+  let tokenCount = 0;
+  const wrappedHandlers: StreamHandlers = {
+    onToken: (token) => {
+      tokenCount++;
+      handlers.onToken(token);
+    },
+    onDone: () => {
+      const inputStr = messages.reduce((acc, m) => acc + m.content, '');
+      const inputTokens = Math.ceil(inputStr.length / 4);
+
+      fetch(`${API_BASE}/api/analytics/log-tokens`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: activeModel,
+          inputTokens,
+          outputTokens: tokenCount
+        })
+      }).catch(() => {});
+
+      handlers.onDone();
+    },
+    onError: (err) => {
+      fetch(`${API_BASE}/api/analytics/log-error`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: err.message,
+          stack: err.stack,
+          source: 'client_ai_stream'
+        })
+      }).catch(() => {});
+
+      handlers.onError(err);
+    }
+  };
+
   switch (provider) {
     case 'OpenAI':
-      await streamOpenAI(messages, activeModel, handlers, options);
+      await streamOpenAI(messages, activeModel, wrappedHandlers, options);
       break;
     case 'Claude':
-      await streamClaude(messages, activeModel, handlers, options);
+      await streamClaude(messages, activeModel, wrappedHandlers, options);
       break;
     case 'Gemini':
-      await streamGemini(messages, activeModel, handlers, options);
+      await streamGemini(messages, activeModel, wrappedHandlers, options);
       break;
     case 'OpenRouter':
-      await streamOpenRouter(messages, activeModel, handlers, options);
+      await streamOpenRouter(messages, activeModel, wrappedHandlers, options);
       break;
     case 'Ollama':
-      await streamOllama(messages, activeModel, handlers, options);
+      await streamOllama(messages, activeModel, wrappedHandlers, options);
       break;
     case 'DeepSeek':
-      await streamDeepSeek(messages, activeModel, handlers, options);
+      await streamDeepSeek(messages, activeModel, wrappedHandlers, options);
       break;
     case 'NVIDIA':
     default:
-      await streamNvidiaResponseDirect(messages, activeModel, handlers, options);
+      await streamNvidiaResponseDirect(messages, activeModel, wrappedHandlers, options);
       break;
   }
 }
+
 
 // Keep signature compatible with previous version
 export async function streamNvidiaResponse(
