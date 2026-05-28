@@ -8,8 +8,9 @@ import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
 import { useTerminalStore } from '@/store/useTerminalStore';
+import { ProcessManagerPanel } from './ProcessManagerPanel';
 
-type PanelTab = 'terminal' | 'problems' | 'output' | 'debug';
+type PanelTab = 'terminal' | 'processes' | 'problems' | 'output' | 'debug';
 
 const problemLines = [
   { severity: 'error',   file: 'src/editor/CodeEditor.tsx', line: 42, msg: "Cannot find name 'Monaco'." },
@@ -32,6 +33,7 @@ type Props = {
 
 const tabs: { id: PanelTab; label: string }[] = [
   { id: 'terminal', label: 'TERMINAL' },
+  { id: 'processes', label: 'PROCESSES' },
   { id: 'problems', label: 'PROBLEMS' },
   { id: 'output',   label: 'OUTPUT' },
   { id: 'debug',    label: 'DEBUG CONSOLE' },
@@ -387,6 +389,11 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
                   )}
                 </div>
               )
+            )}
+
+            {/* PROCESSES */}
+            {activeTab === 'processes' && (
+              <ProcessManagerPanel />
             )}
 
             {/* PROBLEMS */}

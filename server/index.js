@@ -19,11 +19,13 @@ import logsRouter from './routes/logs.js';
 import { initializeWebSocketGateway } from './websocket/index.js';
 import { streamTokens } from './ai/index.js';
 import { SandboxRuntime } from './runtime/index.js';
+import { ProcessManager } from './runtime/processManager.js';
 
 const app = express();
 const server = http.createServer(app);
 const port = Number(process.env.NEXO_API_PORT ?? 8787);
 let workspaceRoot = path.resolve(process.env.NEXO_WORKSPACE_ROOT ?? process.cwd());
+const processManager = new ProcessManager(workspaceRoot);
 
 // Initialize Legacy Engines for complete backwards compatibility
 let memoryEngine = new FileMemoryEngine(workspaceRoot);
@@ -99,6 +101,44 @@ app.post('/api/sandbox/run', async (req, res) => {
       logBuffer += log;
     });
     res.json({ result, logs: logBuffer });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Runtime Background Process Routes
+app.get('/api/runtime/processes', (req, res) => {
+  res.json({ processes: processManager.getProcessList() });
+});
+
+app.post('/api/runtime/start', async (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    void processManager.startProcess(id).catch(() => {});
+    res.json({ ok: true, message: `Process ${id} is booting` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/runtime/stop', (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    processManager.stopProcess(id);
+    res.json({ ok: true, message: `Process ${id} stopped` });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/runtime/restart', async (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    void processManager.restartProcess(id).catch(() => {});
+    res.json({ ok: true, message: `Process ${id} is restarting` });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -237,6 +277,7 @@ app.post('/api/fs/workspace', async (req, res) => {
     const resolved = path.resolve(newPath);
     await fs.mkdir(resolved, { recursive: true });
     workspaceRoot = resolved;
+    processManager.workspaceRoot = resolved;
     memoryEngine = new FileMemoryEngine(workspaceRoot);
     console.log(`[Server] Dynamic workspace root updated to: ${workspaceRoot}`);
     res.json({ ok: true, workspaceRoot });
@@ -270,7 +311,7 @@ app.post('/api/fs/delete', async (req, res) => {
 });
 
 // Initialize WebSocket gateway at /api/ws
-initializeWebSocketGateway(server, workspaceRoot);
+initializeWebSocketGateway(server, workspaceRoot, processManager);
 
 // Maintain Legacy websocket at /api/ai/ws
 const wssLegacy = new WebSocketServer({ noServer: true });

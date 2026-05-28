@@ -4,7 +4,7 @@ import { AutonomousAgent } from '../agents/index.js';
 import { SandboxRuntime } from '../runtime/index.js';
 import { TerminalSession } from '../terminal/index.js';
 
-export function initializeWebSocketGateway(server, workspaceRoot) {
+export function initializeWebSocketGateway(server, workspaceRoot, processManager) {
   const wss = new WebSocketServer({ server, path: '/api/ws' });
   const sandbox = new SandboxRuntime(workspaceRoot);
 
@@ -97,6 +97,46 @@ export function initializeWebSocketGateway(server, workspaceRoot) {
             });
 
             socket.send(JSON.stringify({ type: 'sandbox_result', result }));
+            break;
+          }
+
+          // 5. RUNTIME PROCESS MANAGER
+          case 'runtime_list': {
+            socket.send(JSON.stringify({ type: 'runtime_processes', processes: processManager.getProcessList() }));
+            break;
+          }
+          case 'runtime_start': {
+            const { id } = payload;
+            socket.send(JSON.stringify({ type: 'runtime_log', id, data: `[WebSocket] Starting process ${id}...\n` }));
+            
+            void processManager.startProcess(id, (log) => {
+              socket.send(JSON.stringify({ type: 'runtime_log', id, data: log }));
+            }).then(() => {
+              socket.send(JSON.stringify({ type: 'runtime_status', id, status: 'active' }));
+            }).catch((err) => {
+              socket.send(JSON.stringify({ type: 'runtime_status', id, status: 'error' }));
+            });
+            
+            socket.send(JSON.stringify({ type: 'runtime_status', id, status: 'booting' }));
+            break;
+          }
+          case 'runtime_stop': {
+            const { id } = payload;
+            processManager.stopProcess(id);
+            socket.send(JSON.stringify({ type: 'runtime_status', id, status: 'idle' }));
+            socket.send(JSON.stringify({ type: 'runtime_log', id, data: `[WebSocket] Process ${id} stopped.\n` }));
+            break;
+          }
+          case 'runtime_restart': {
+            const { id } = payload;
+            socket.send(JSON.stringify({ type: 'runtime_status', id, status: 'booting' }));
+            void processManager.restartProcess(id, (log) => {
+              socket.send(JSON.stringify({ type: 'runtime_log', id, data: log }));
+            }).then(() => {
+              socket.send(JSON.stringify({ type: 'runtime_status', id, status: 'active' }));
+            }).catch(() => {
+              socket.send(JSON.stringify({ type: 'runtime_status', id, status: 'error' }));
+            });
             break;
           }
 
