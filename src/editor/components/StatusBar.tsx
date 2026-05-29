@@ -1,5 +1,7 @@
-import { GitBranch, AlertCircle, AlertTriangle, CheckCircle2, Zap, Bell, Cloud } from 'lucide-react';
+import { GitBranch, AlertCircle, AlertTriangle, CheckCircle2, Zap, Bell, Cloud, ShieldAlert, Activity } from 'lucide-react';
 import { useEditorStore } from '@/store/useEditorStore';
+import { useImpactStore } from '@/store/useImpactStore';
+import { useHealthStore } from '@/store/useHealthStore';
 
 type Props = {
   aiPanelOpen?: boolean;
@@ -38,6 +40,8 @@ function Divider() {
 export function StatusBar({ aiPanelOpen, sidebarOpen }: Props) {
   const { activeFile, files } = useEditorStore();
   const activeFileData = activeFile ? files[activeFile] : null;
+  const { report } = useImpactStore();
+  const { healthScore } = useHealthStore();
 
   const langLabel: Record<string, string> = {
     typescript: 'TypeScript React',
@@ -76,6 +80,26 @@ export function StatusBar({ aiPanelOpen, sidebarOpen }: Props) {
           <span>0</span>
           <AlertTriangle size={12} style={{ marginLeft: '4px' }} />
           <span>0</span>
+        </StatusItem>
+
+        <Divider />
+
+        <StatusItem onClick={() => {
+          window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-ai', payload: true } }));
+          window.dispatchEvent(new CustomEvent('nexo-assistant-tab', { detail: { tab: 'impact' } }));
+        }} title="Code impact risk audit status">
+          <ShieldAlert size={12} />
+          <span>Impact: {report ? report.overallRisk.toUpperCase() : 'SAFE'}</span>
+        </StatusItem>
+
+        <Divider />
+
+        <StatusItem onClick={() => {
+          window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-ai', payload: true } }));
+          window.dispatchEvent(new CustomEvent('nexo-assistant-tab', { detail: { tab: 'health' } }));
+        }} title="Project codebase health audit score">
+          <Activity size={12} />
+          <span>Health: {healthScore}%</span>
         </StatusItem>
       </div>
 

@@ -22,6 +22,12 @@ import searchRouter from './routes/search.js';
 import syncRouter from './routes/sync.js';
 import vaultRouter, { decrypt } from './routes/vault.js';
 import analyticsRouter, { logBackendError } from './routes/analytics.js';
+import brainRouter from './routes/brain.js';
+import dreamRouter from './routes/dream.js';
+import archmapRouter from './routes/archmap.js';
+import impactRouter from './routes/impact.js';
+import healthRouter from './routes/health.js';
+import wikiRouter from './routes/wiki.js';
 
 
 import { initializeWebSocketGateway } from './websocket/index.js';
@@ -120,6 +126,12 @@ app.use('/api/search', searchRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/vault', vaultRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/brain', brainRouter);
+app.use('/api/dream', dreamRouter);
+app.use('/api/archmap', archmapRouter);
+app.use('/api/impact', impactRouter);
+app.use('/api/health', healthRouter);
+app.use('/api/wiki', wikiRouter);
 
 // Exception logs mapping
 process.on('uncaughtException', (err) => {

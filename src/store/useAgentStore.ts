@@ -4,6 +4,9 @@ import { readWorkspaceFile, writeWorkspaceFile } from '@/services/fileSystemClie
 import { runSandboxCommand } from '@/services/sandboxClient';
 import { useAiTimelineStore } from '@/store/useAiTimelineStore';
 import { formatContextForPrompt } from '@/ai/contextInjection';
+import { useCtoStore } from '@/store/useCtoStore';
+import { useAiLearningStore } from '@/store/useAiLearningStore';
+import { useAutoDocStore } from '@/store/useAutoDocStore';
 
 export type AgentId = 'planner' | 'coder' | 'debug' | 'ui' | 'refactor' | 'deploy' | 'security';
 export type AgentStatus = 'idle' | 'thinking' | 'discussing' | 'working' | 'success' | 'failed';
@@ -527,6 +530,13 @@ Output ONLY the raw file contents. Do NOT wrap output in markdown code blocks (d
                 detail: `Successfully wrote approved changes to ${activeTask.file}`,
                 status: 'success'
               });
+
+              // Trigger AI Learning (observed preference scanning)
+              void useAiLearningStore.getState().learnFromCode(finalCode, activeTask.file);
+
+              // Trigger Auto Documentation generation
+              void useAutoDocStore.getState().generateDocForFile(activeTask.file, finalCode, activeTask.action || 'modify');
+
             } catch (err: any) {
               log(`[Orchestrator] Failed writing file to workspace: ${err.message}`);
               throw err;
@@ -752,6 +762,36 @@ Output ONLY the raw file contents. Do NOT wrap output in markdown code blocks.`;
           }
         });
         log('🎉 Multi-agent execution loop finished successfully! App workspace updated.');
+
+        // Trigger CTO analysis on success
+        if (lastCreatedFile) {
+          try {
+            log(`[CTO] Running post-execution review on: ${lastCreatedFile}`);
+            const fileRes = await readWorkspaceFile(lastCreatedFile);
+            const ctoStore = useCtoStore.getState();
+            if (ctoStore.ctoEnabled) {
+              timeline.addEvent({
+                agentId: 'security',
+                icon: '🛡️',
+                title: 'CTO Audit Running',
+                detail: `Running CTO analysis on ${lastCreatedFile}`,
+                status: 'pending'
+              });
+              const report = await ctoStore.runCtoAnalysis(goal, fileRes.content, lastCreatedFile);
+              if (report) {
+                timeline.addEvent({
+                  agentId: 'security',
+                  icon: '🛡️',
+                  title: 'CTO Audit Finished',
+                  detail: `Analysis complete! Project Score: ${report.overallScore}/100. Recommendation: ${report.recommendation}`,
+                  status: 'success'
+                });
+              }
+            }
+          } catch (ctoErr: any) {
+            log(`[CTO] Analysis failed: ${ctoErr.message}`);
+          }
+        }
 
         timeline.addEvent({
           agentId: 'planner',

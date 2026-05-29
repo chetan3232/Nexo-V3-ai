@@ -24,6 +24,8 @@ import { FloatingAIWidget } from '@/editor/components/FloatingAIWidget';
 import { ShieldAlert } from 'lucide-react';
 import { useAgentStore } from '@/store/useAgentStore';
 import { AiDiffApprovalModal } from '@/editor/components/AiDiffApprovalModal';
+import DreamModePanel from '@/editor/components/DreamModePanel';
+import { useDreamStore } from '@/store/useDreamStore';
 
 // ── Drag-resize handle ─────────────────────────────────────────────────────
 function ResizeHandle({
@@ -107,6 +109,9 @@ export function IdeWorkspace() {
   const pendingWrite = useAgentStore((s) => s.pendingWrite);
   const acceptPendingWrite = useAgentStore((s) => s.acceptPendingWrite);
   const rejectPendingWrite = useAgentStore((s) => s.rejectPendingWrite);
+
+  // Dream Mode State
+  const dreamStatus = useDreamStore((s) => s.dreamStatus);
 
   // Connect to gateway for runtime security events
   useEffect(() => {
@@ -739,6 +744,11 @@ export function IdeWorkspace() {
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
+
+      {/* Dream Mode Overlay */}
+      <AnimatePresence>
+        {dreamStatus !== 'idle' && <DreamModePanel />}
       </AnimatePresence>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Search, Sparkles, X, Minus, Maximize2, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Sparkles, X, Minus, Maximize2, Check, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore } from '@/store/useSettingsStore';
 
@@ -364,6 +364,28 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
         WebkitAppRegion: 'no-drag',
         zIndex: 1000,
       } as any}>
+        {/* Understand Project Button */}
+        <button
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-ai', payload: true } }));
+            window.dispatchEvent(new CustomEvent('nexo-assistant-tab', { detail: { tab: 'wiki' } }));
+          }}
+          title="Analyze and generate project documentation wikis"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            background: 'rgba(139, 92, 246, 0.12)',
+            border: '1px solid rgba(139, 92, 246, 0.3)',
+            borderRadius: '5px', padding: '3px 8px',
+            color: '#a78bfa',
+            fontSize: '12px', cursor: 'pointer',
+            transition: 'all 150ms ease',
+            marginRight: '4px',
+          }}
+        >
+          <BookOpen size={13} />
+          <span>Understand</span>
+        </button>
+
         {/* AI toggle */}
         <button
           id="toggle-ai-panel"

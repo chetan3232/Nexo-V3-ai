@@ -8,7 +8,7 @@ import {
   FileSearch, Wand2, Component, Bug, ChevronDown,
   Play, StopCircle, CheckCircle2, AlertCircle, Loader2,
   Search, Plus, PlusCircle, FileCode, Folder, Calendar, Info, Sparkles,
-  History, GitFork,
+  History, GitFork, Brain, Moon, Shield, Map, Activity, BookOpen, ShieldAlert
 } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
 import { NVIDIA_MODELS, NvidiaModel } from '@/services/aiStreamClient';
@@ -18,9 +18,19 @@ import { useFileSystemStore } from '@/store/useFileSystemStore';
 import { useAgentStore, AGENT_CONFIGS } from '@/store/useAgentStore';
 import { useMemoryStore } from '@/store/useMemoryStore';
 import ChatSidebar from './ChatSidebar';
+import ProjectBrainPanel from './ProjectBrainPanel';
+import CtoReportCard from './CtoReportCard';
+import { useCtoStore } from '@/store/useCtoStore';
+import { useDreamStore } from '@/store/useDreamStore';
+import { useProjectBrainStore } from '@/store/useProjectBrainStore';
+import { ArchitectureMapPanel } from './ArchitectureMapPanel';
+import { ImpactAnalysisPanel } from './ImpactAnalysisPanel';
+import { ProjectHealthPanel } from './ProjectHealthPanel';
+import { ProjectWikiPanel } from './ProjectWikiPanel';
+import { AiLearningPanel } from './AiLearningPanel';
 
 type Props  = { onClose: () => void };
-type PanelTab = 'chat' | 'agents' | 'memory';
+type PanelTab = 'chat' | 'agents' | 'memory' | 'brain' | 'archmap' | 'impact' | 'health' | 'wiki' | 'dna';
 
 const quickActions = [
   { icon: FileSearch, title: 'Explain this code',   desc: 'Explain the selected code in detail.',    color: '#60a5fa', prompt: 'Explain the current file code clearly and in detail.' },
@@ -44,6 +54,10 @@ export function AIAssistantPanel({ onClose }: Props) {
     forkConversation, loadConversations
   } = useChatStore();
   const { files, activeFile } = useEditorStore();
+  
+  const { lastReport, ctoEnabled, toggleCto, isAnalyzing } = useCtoStore();
+  const { isDreamMode, toggleDreamMode, startDream } = useDreamStore();
+
   const [activeTab, setActiveTab] = useState<PanelTab>('chat');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [modelOpen, setModelOpen] = useState(false);
@@ -56,6 +70,18 @@ export function AIAssistantPanel({ onClose }: Props) {
   useEffect(() => {
     void loadConversations();
   }, [workspacePath, loadConversations]);
+
+  // Listen for external layout/toolbar requests to switch active tab
+  useEffect(() => {
+    const handleTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.tab) {
+        setActiveTab(customEvent.detail.tab);
+      }
+    };
+    window.addEventListener('nexo-assistant-tab', handleTabChange);
+    return () => window.removeEventListener('nexo-assistant-tab', handleTabChange);
+  }, []);
 
   // `@`-Mentions autocomplete states
   const [mentionActive, setMentionActive] = useState(false);
@@ -143,7 +169,21 @@ export function AIAssistantPanel({ onClose }: Props) {
     e.preventDefault();
     if (!input.trim() || isStreaming) return;
 
+    if (isDreamMode) {
+      const goalText = input.trim();
+      setInput('');
+      void startDream(goalText);
+      return;
+    }
+
     const contextParts: string[] = [];
+
+    // 0. Inject Project Brain DNA Context
+    const brainStore = useProjectBrainStore.getState();
+    const brainContext = brainStore.getBrainContext();
+    if (brainContext) {
+      contextParts.push(`\n\n[Project DNA Brain Context]:\n${brainContext}`);
+    }
 
     // 1. Inject active file context
     if (activeFile && files[activeFile]) {
@@ -237,6 +277,12 @@ export function AIAssistantPanel({ onClose }: Props) {
     { id: 'chat',   label: 'CHAT',   icon: MessageSquare },
     { id: 'agents', label: 'AGENTS', icon: Cpu },
     { id: 'memory', label: 'MEMORY', icon: Database },
+    { id: 'brain',  label: 'BRAIN',  icon: Brain },
+    { id: 'archmap',label: 'MAP',    icon: Map },
+    { id: 'impact', label: 'RISK',   icon: ShieldAlert },
+    { id: 'health', label: 'HEALTH', icon: Activity },
+    { id: 'wiki',   label: 'WIKI',   icon: BookOpen },
+    { id: 'dna',    label: 'DNA',    icon: Sparkles },
   ];
 
   return (
@@ -245,18 +291,41 @@ export function AIAssistantPanel({ onClose }: Props) {
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '10px 14px 0', flexShrink: 0, justifyContent: 'space-between' }}>
         <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.1em', color: '#e2e8f0' }}>NEXO AI</span>
-        <div style={{ display: 'flex', gap: '2px' }}>
+        <div style={{ display: 'flex', gap: '2px', alignItems: 'center' }}>
           {activeTab === 'chat' && (
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              title="Toggle Chat History"
-              style={{
-                ...iconBtnStyle,
-                color: sidebarOpen ? '#3b82f6' : '#6b7280'
-              }}
-            >
-              <History size={13} />
-            </button>
+            <>
+              {/* CTO Toggle Switch */}
+              <button
+                onClick={toggleCto}
+                title={ctoEnabled ? "Disable AI CTO Mode" : "Enable AI CTO Mode"}
+                style={{
+                  ...iconBtnStyle,
+                  color: ctoEnabled ? '#a78bfa' : '#6b7280',
+                  marginRight: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: ctoEnabled ? 'rgba(139,92,246,0.1)' : 'transparent',
+                  border: `1px solid ${ctoEnabled ? 'rgba(139,92,246,0.25)' : 'transparent'}`,
+                  borderRadius: '12px',
+                  padding: '2px 8px',
+                }}
+              >
+                <Shield size={10} style={{ fill: ctoEnabled ? '#a78bfa' : 'none' }} />
+                <span style={{ fontSize: '9px', fontWeight: 700 }}>CTO</span>
+              </button>
+
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                title="Toggle Chat History"
+                style={{
+                  ...iconBtnStyle,
+                  color: sidebarOpen ? '#3b82f6' : '#6b7280'
+                }}
+              >
+                <History size={13} />
+              </button>
+            </>
           )}
           <button onClick={clearChat} title="Clear chat" style={iconBtnStyle}>
             <Trash2 size={13} />
@@ -424,6 +493,20 @@ export function AIAssistantPanel({ onClose }: Props) {
                     ))}
                   </div>
                 )}
+
+                {isAnalyzing && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingLeft: '32px', color: '#a78bfa', fontSize: '11px', marginTop: '6px', marginBottom: '6px' }}>
+                    <Loader2 size={12} className="animate-spin" />
+                    <span>NEXO CTO is analyzing generated code...</span>
+                  </div>
+                )}
+
+                {lastReport && !lastReport.dismissed && (
+                  <div style={{ marginTop: '12px', paddingLeft: '32px', marginBottom: '8px' }}>
+                    <CtoReportCard report={lastReport} />
+                  </div>
+                )}
+
                 <div ref={messagesEndRef} />
               </div>
 
@@ -580,6 +663,29 @@ export function AIAssistantPanel({ onClose }: Props) {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {isStreaming && <span style={{ fontSize: '11px', color: '#4b5563' }}>streaming…</span>}
+                        
+                        {/* Dream Mode Toggle */}
+                        <button
+                          type="button"
+                          onClick={toggleDreamMode}
+                          title={isDreamMode ? "Disable Dream Mode" : "Enable Dream Mode (Autonomous Agent)"}
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '6px',
+                            background: isDreamMode ? 'linear-gradient(135deg, #1e1b4b, #311042)' : '#1f2937',
+                            border: `1px solid ${isDreamMode ? '#8b5cf6' : 'transparent'}`,
+                            color: isDreamMode ? '#a78bfa' : '#9ca3af',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 150ms ease',
+                          }}
+                        >
+                          <Moon size={13} style={{ fill: isDreamMode ? '#a78bfa' : 'none' }} />
+                        </button>
+
                         <button type="submit" disabled={isStreaming || !input.trim()} style={{ width: '28px', height: '28px', borderRadius: '6px', background: (isStreaming || !input.trim()) ? '#1f2937' : '#3b82f6', border: 'none', color: (isStreaming || !input.trim()) ? '#4b5563' : 'white', cursor: (isStreaming || !input.trim()) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 120ms ease' }}>
                           <Send size={13} />
                         </button>
@@ -598,6 +704,30 @@ export function AIAssistantPanel({ onClose }: Props) {
 
         {activeTab === 'memory' && (
           <MemoryExplorer />
+        )}
+
+        {activeTab === 'brain' && (
+          <ProjectBrainPanel />
+        )}
+
+        {activeTab === 'archmap' && (
+          <ArchitectureMapPanel />
+        )}
+
+        {activeTab === 'impact' && (
+          <ImpactAnalysisPanel />
+        )}
+
+        {activeTab === 'health' && (
+          <ProjectHealthPanel />
+        )}
+
+        {activeTab === 'wiki' && (
+          <ProjectWikiPanel />
+        )}
+
+        {activeTab === 'dna' && (
+          <AiLearningPanel />
         )}
       </AnimatePresence>
     </div>
