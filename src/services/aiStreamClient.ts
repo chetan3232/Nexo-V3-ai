@@ -98,42 +98,11 @@ export const NVIDIA_MODELS: NvidiaModel[] = [
   // ── Auto Router ──
   { id: 'nexo-auto-router',                        label: '✦ Nexo Auto Router',       provider: 'Nexo AI',    category: 'reasoning', contextK: 128 },
 
-  // ── Claude (Anthropic) ──
-  { id: 'claude/claude-3-5-sonnet-latest',         label: 'Claude 3.5 Sonnet',        provider: 'Claude',     category: 'coding',    contextK: 200 },
-  { id: 'claude/claude-3-5-haiku-latest',          label: 'Claude 3.5 Haiku',         provider: 'Claude',     category: 'mini',      contextK: 200 },
-  { id: 'claude/claude-3-opus-latest',             label: 'Claude 3 Opus',            provider: 'Claude',     category: 'reasoning', contextK: 200 },
-
-  // ── Gemini (Google) ──
-  { id: 'gemini/gemini-2.0-flash-thinking-exp',    label: 'Gemini 2.0 Thinking',      provider: 'Gemini',     category: 'reasoning', contextK: 1048 },
-  { id: 'gemini/gemini-1.5-pro',                   label: 'Gemini 1.5 Pro',           provider: 'Gemini',     category: 'coding',    contextK: 2096 },
-  { id: 'gemini/gemini-2.0-flash',                 label: 'Gemini 2.0 Flash',         provider: 'Gemini',     category: 'general',   contextK: 1048 },
-
-  // ── OpenAI ──
-  { id: 'openai/gpt-4o',                           label: 'GPT-4o',                   provider: 'OpenAI',     category: 'coding',    contextK: 128 },
-  { id: 'openai/gpt-4o-mini',                      label: 'GPT-4o Mini',              provider: 'OpenAI',     category: 'mini',      contextK: 128 },
-  { id: 'openai/o1-mini',                          label: 'o1-mini',                  provider: 'OpenAI',     category: 'reasoning', contextK: 128 },
-  { id: 'openai/o3-mini',                          label: 'o3-mini',                  provider: 'OpenAI',     category: 'reasoning', contextK: 200 },
-
-  // ── DeepSeek ──
-  { id: 'deepseek/deepseek-chat',                  label: 'DeepSeek V3',              provider: 'DeepSeek',   category: 'coding',    contextK: 64 },
-  { id: 'deepseek/deepseek-reasoner',              label: 'DeepSeek R1 (Reasoner)',   provider: 'DeepSeek',   category: 'reasoning', contextK: 64 },
-
-  // ── OpenRouter ──
-  { id: 'openrouter/anthropic/claude-3.5-sonnet',  label: 'Claude 3.5 Sonnet (OR)',   provider: 'OpenRouter', category: 'coding',    contextK: 200 },
-  { id: 'openrouter/meta/llama-3.3-70b-instruct',  label: 'Llama 3.3 70B (OR)',       provider: 'OpenRouter', category: 'general',   contextK: 128 },
-  { id: 'openrouter/deepseek/deepseek-r1',         label: 'DeepSeek R1 (OR)',         provider: 'OpenRouter', category: 'reasoning', contextK: 128 },
-
-  // ── Local Ollama ──
-  { id: 'ollama/llama3',                           label: 'Llama 3 (Local)',          provider: 'Ollama',     category: 'general',   contextK: 8 },
-  { id: 'ollama/qwen2.5-coder',                    label: 'Qwen 2.5 Coder (Local)',   provider: 'Ollama',     category: 'coding',    contextK: 16 },
-  { id: 'ollama/deepseek-r1',                      label: 'DeepSeek R1 (Local)',      provider: 'Ollama',     category: 'reasoning', contextK: 8 },
-
   // ── NVIDIA NIM (Direct Coding / Reasoning) ──
+  { id: 'z-ai/glm-5.1',                            label: 'GLM 5.1 (NIM)',            provider: 'NVIDIA',     category: 'reasoning', contextK: 128 },
+  { id: 'stepfun-ai/step-3.7-flash',               label: 'Step 3.7 Flash (NIM)',     provider: 'NVIDIA',     category: 'coding',    contextK: 128 },
+  { id: 'minimaxai/minimax-m2.7',                  label: 'Minimax M2.7 (NIM)',       provider: 'NVIDIA',     category: 'general',   contextK: 128 },
   { id: 'qwen/qwen3-coder-480b-a35b-instruct',    label: 'Qwen3 Coder 480B (NIM)',   provider: 'NVIDIA',     category: 'coding',    contextK: 128 },
-  { id: 'nvidia/llama-3.1-nemotron-nano-8b-v1',    label: 'Nemotron Nano 8B (NIM)',   provider: 'NVIDIA',     category: 'mini',      contextK: 128 },
-  { id: 'nvidia/llama-3.3-nemotron-super-49b-v1.5',label: 'Nemotron Super 49B (NIM)', provider: 'NVIDIA',     category: 'reasoning', contextK: 128 },
-  { id: 'nvidia/llama-3.1-nemotron-70b-instruct',  label: 'Nemotron 70B (NIM)',        provider: 'NVIDIA',     category: 'reasoning', contextK: 128 },
-  { id: 'mistralai/codestral-22b-instruct-v0.1',   label: 'Codestral 22B (NIM)',       provider: 'Mistral',    category: 'coding',    contextK: 32  },
 ];
 
 export const DEFAULT_MODEL = 'nexo-auto-router';
@@ -168,44 +137,16 @@ export function detectTaskType(messages: ChatMessage[]): 'cheap' | 'coding' | 'r
 
 // ── Auto Model Router ─────────────────────────────────────────────────────
 export function routeModelAutomatically(taskType: 'cheap' | 'coding' | 'reasoning' | 'general'): string {
-  const hasClaude = !!getClaudeKey();
-  const hasGemini = !!getGeminiKey();
-  const hasNvidia = !!getNvidiaKey();
-  const hasOpenai = !!getOpenaiKey();
-  const hasDeepseek = !!getDeepseekKey();
-  const hasOpenrouter = !!getOpenrouterKey();
-
-  if (taskType === 'cheap') {
-    if (hasNvidia) return 'nvidia/llama-3.1-nemotron-nano-8b-v1';
-    if (hasOpenai) return 'openai/gpt-4o-mini';
-    if (hasClaude) return 'claude/claude-3-5-haiku-latest';
-    return 'ollama/llama3'; // Local fallback
-  }
-
-  if (taskType === 'coding') {
-    if (hasClaude) return 'claude/claude-3-5-sonnet-latest';
-    if (hasDeepseek) return 'deepseek/deepseek-chat';
-    if (hasOpenrouter) return 'openrouter/anthropic/claude-3.5-sonnet';
-    if (hasNvidia) return 'qwen/qwen3-coder-480b-a35b-instruct';
-    if (hasOpenai) return 'openai/gpt-4o';
-    if (hasGemini) return 'gemini/gemini-1.5-pro';
-    return 'ollama/qwen2.5-coder'; // Local fallback
-  }
-
   if (taskType === 'reasoning') {
-    if (hasGemini) return 'gemini/gemini-2.0-flash-thinking-exp';
-    if (hasDeepseek) return 'deepseek/deepseek-reasoner';
-    if (hasOpenai) return 'openai/o1-mini';
-    if (hasClaude) return 'claude/claude-3-opus-latest';
-    return 'ollama/deepseek-r1'; // Local fallback
+    return 'z-ai/glm-5.1';
   }
-
-  // General fallback
-  if (hasClaude) return 'claude/claude-3-5-sonnet-latest';
-  if (hasGemini) return 'gemini/gemini-2.0-flash';
-  if (hasOpenai) return 'openai/gpt-4o';
-  if (hasNvidia) return 'nvidia/llama-3.3-nemotron-super-49b-v1.5';
-  return 'ollama/llama3';
+  if (taskType === 'coding') {
+    return 'qwen/qwen3-coder-480b-a35b-instruct';
+  }
+  if (taskType === 'cheap') {
+    return 'stepfun-ai/step-3.7-flash';
+  }
+  return 'minimaxai/minimax-m2.7';
 }
 
 // ── SSE Stream Parsers ─────────────────────────────────────────────────────
@@ -240,6 +181,9 @@ async function parseStandardSSE(response: Response, handlers: StreamHandlers) {
         try {
           const json = JSON.parse(data);
           const delta = json?.choices?.[0]?.delta;
+          if (delta?.reasoning_content) {
+            handlers.onToken(delta.reasoning_content);
+          }
           if (delta?.content) {
             handlers.onToken(delta.content);
           }
@@ -630,6 +574,15 @@ async function streamDeepSeek(
   }
 }
 
+function getFallbackNvidiaModel(modelId: string): string | null {
+  switch (modelId) {
+    case 'z-ai/glm-5.1':
+      return 'stepfun-ai/step-3.7-flash';
+    default:
+      return null;
+  }
+}
+
 async function streamNvidiaResponseDirect(
   messages: ChatMessage[],
   modelId: string,
@@ -644,35 +597,95 @@ async function streamNvidiaResponseDirect(
     return;
   }
 
-  let response: Response;
-  try {
-    response = await fetch(`${NVIDIA_BASE}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model:       modelId,
-        messages,
-        temperature,
-        top_p:       topP,
-        max_tokens:  maxTokens,
-        stream:      true,
-      }),
-    });
-  } catch (err) {
-    handlers.onError(new Error(`Network error: ${String(err)}`));
+  let currentModel = modelId;
+  const maxRetries = 2; // Retry up to 2 times per model
+
+  while (currentModel) {
+    let delay = 1000;
+    let success = false;
+    let lastError: Error | null = null;
+    let shouldTryFallback = false;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      let response: Response;
+      try {
+        const requestBody: any = {
+          model:       currentModel,
+          messages,
+          temperature,
+          top_p:       topP,
+          max_tokens:  maxTokens,
+          stream:      true,
+        };
+
+        if (currentModel === 'z-ai/glm-5.1') {
+          requestBody.chat_template_kwargs = { "enable_thinking": true, "clear_thinking": false };
+          requestBody.max_tokens = 16384;
+          requestBody.temperature = 1.0;
+          requestBody.top_p = 1.0;
+        } else if (currentModel === 'stepfun-ai/step-3.7-flash') {
+          requestBody.max_tokens = 16384;
+          requestBody.temperature = 1.0;
+          requestBody.top_p = 0.95;
+        }
+
+        response = await fetch(`${NVIDIA_BASE}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type':  'application/json',
+            'Authorization': `Bearer ${key}`,
+          },
+          body: JSON.stringify(requestBody),
+        });
+      } catch (err) {
+        lastError = new Error(`Network error: ${String(err)}`);
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 1.5;
+          continue;
+        }
+        shouldTryFallback = true;
+        break;
+      }
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        lastError = new Error(`NVIDIA API ${response.status}: ${text}`);
+
+        if (response.status === 503 || response.status === 429) {
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 1.5;
+            continue;
+          }
+          shouldTryFallback = true;
+        }
+        break;
+      }
+
+      try {
+        await parseStandardSSE(response, handlers);
+        return; // Success, exit
+      } catch (err: any) {
+        handlers.onError(err);
+        return;
+      }
+    }
+
+    if (shouldTryFallback) {
+      const fallbackModel = getFallbackNvidiaModel(currentModel);
+      if (fallbackModel) {
+        const fallbackLabel = NVIDIA_MODELS.find(m => m.id === fallbackModel)?.label || fallbackModel;
+        // Notify the user of fallback behavior via stream token
+        handlers.onToken(`\n\n> ⚠️ *[NVIDIA API: "${currentModel}" is busy/overloaded (503/429). Falling back to "${fallbackLabel}"...]*\n\n`);
+        currentModel = fallbackModel;
+        continue;
+      }
+    }
+
+    handlers.onError(lastError || new Error("NVIDIA API request failed"));
     return;
   }
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    handlers.onError(new Error(`NVIDIA API ${response.status}: ${text}`));
-    return;
-  }
-
-  await parseStandardSSE(response, handlers);
 }
 
 // ── Unified Master Entrypoints ─────────────────────────────────────────────
@@ -687,7 +700,13 @@ export async function streamAIResponse(
 ): Promise<void> {
   let activeModel = modelId;
 
-  if (modelId === 'nexo-auto-router') {
+  // Fallback to DEFAULT_MODEL if the model ID is not in our supported list (e.g. from stale LocalStorage)
+  const modelExists = NVIDIA_MODELS.some(m => m.id === activeModel);
+  if (!modelExists) {
+    activeModel = DEFAULT_MODEL;
+  }
+
+  if (activeModel === 'nexo-auto-router') {
     const taskType = detectTaskType(messages);
     activeModel = routeModelAutomatically(taskType);
     console.log(`[Auto Router] Routed task type "${taskType}" to model: ${activeModel}`);

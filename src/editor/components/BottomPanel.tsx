@@ -81,7 +81,13 @@ function RealTerminal({ id }: { id: string }) {
     term.loadAddon(fitAddon);
     term.open(container);
     if (container.clientWidth > 0 && container.clientHeight > 0) {
-      try { fitAddon.fit(); } catch (e) {}
+      setTimeout(() => {
+        try {
+          if (term.element) {
+            fitAddon.fit();
+          }
+        } catch (e) {}
+      }, 0);
     }
 
     termInstance.current = term;

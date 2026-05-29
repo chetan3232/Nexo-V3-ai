@@ -42,7 +42,7 @@ function getMemoryMetrics() {
 
 
 export function initializeWebSocketGateway(server, workspaceRoot, processManager) {
-  const wss = new WebSocketServer({ server, path: '/api/ws' });
+  const wss = new WebSocketServer({ noServer: true });
   const sandbox = new SandboxRuntime(workspaceRoot);
 
   wss.on('connection', (socket) => {

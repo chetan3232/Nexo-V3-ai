@@ -428,3 +428,16 @@ code, pre, kbd, .font-mono {
 .breadcrumb-sep { color: var(--text-muted); }
 .breadcrumb-item { color: var(--text-secondary); }
 .breadcrumb-item:last-child { color: var(--text-primary); }
+
+/* ── Reduced Motion Accessibility (WCAG 2.3.3) ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-delay: -1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    background-attachment: initial !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
+  }
+}

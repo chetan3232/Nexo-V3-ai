@@ -13,6 +13,7 @@ import { DebuggerPanel } from './DebuggerPanel';
 import { AITeamPanel } from './AITeamPanel';
 import { TimeTravelPanel } from '@/git/TimeTravelPanel';
 import { BuildPanel } from '@/cloud/BuildPanel';
+import { AiTimelinePanel } from './AiTimelinePanel';
 
 const API_BASE = import.meta.env.VITE_NEXO_API_URL ?? 'http://localhost:8787';
 
@@ -50,6 +51,9 @@ export function Sidebar({ collapsed, activeTab }: Props) {
   const [commitMsg, setCommitMsg] = useState('');
   const [gitLoading, setGitLoading] = useState(false);
   const [aiGeneratingMsg, setAiGeneratingMsg] = useState(false);
+
+  // ── Timeline Accordion State ──
+  const [timelineExpanded, setTimelineExpanded] = useState(true);
 
   // Load Git status files
   const fetchGitStatus = async () => {
@@ -348,22 +352,30 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                 <span>OUTLINE</span>
               </div>
             </div>
-            <div style={{ borderTop: '1px solid #1f2937', flexShrink: 0 }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '6px 12px',
-                fontSize: '11px',
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                color: '#6b7280',
-                cursor: 'pointer',
-              }}>
-                <span style={{ fontSize: '10px' }}>›</span>
-                <span>TIMELINE</span>
+            <div style={{ borderTop: '1px solid #1f2937', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+              <div
+                onClick={() => setTimelineExpanded(!timelineExpanded)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '6px 12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  color: timelineExpanded ? '#3b82f6' : '#6b7280',
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: '10px', transform: timelineExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 150ms', display: 'inline-block' }}>›</span>
+                <span>AI TIMELINE</span>
               </div>
+              {timelineExpanded && (
+                <div style={{ borderTop: '1px solid #1f2937', background: '#0d1117', overflowY: 'auto', maxHeight: '250px' }}>
+                  <AiTimelinePanel />
+                </div>
+              )}
             </div>
           </>
         )}

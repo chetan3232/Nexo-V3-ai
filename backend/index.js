@@ -354,7 +354,7 @@ app.post('/api/fs/delete', async (req, res) => {
 });
 
 // Initialize WebSocket gateway at /api/ws
-initializeWebSocketGateway(server, workspaceRoot, processManager);
+const wssGateway = initializeWebSocketGateway(server, workspaceRoot, processManager);
 
 // Maintain Legacy websocket at /api/ai/ws
 const wssLegacy = new WebSocketServer({ noServer: true });
@@ -370,11 +370,21 @@ wssLegacy.on('connection', (socket) => {
 
 // Delegate WebSocket connections based on request path
 server.on('upgrade', (request, socket, head) => {
-  const { pathname } = new URL(request.url, `http://${request.headers.host}`);
-  if (pathname === '/api/ai/ws') {
-    wssLegacy.handleUpgrade(request, socket, head, (ws) => {
-      wssLegacy.emit('connection', ws, request);
-    });
+  try {
+    const { pathname } = new URL(request.url, `http://${request.headers.host}`);
+    if (pathname === '/api/ai/ws') {
+      wssLegacy.handleUpgrade(request, socket, head, (ws) => {
+        wssLegacy.emit('connection', ws, request);
+      });
+    } else if (pathname === '/api/ws') {
+      wssGateway.handleUpgrade(request, socket, head, (ws) => {
+        wssGateway.emit('connection', ws, request);
+      });
+    } else {
+      socket.destroy();
+    }
+  } catch (e) {
+    socket.destroy();
   }
 });
 
