@@ -28,6 +28,7 @@ import archmapRouter from './routes/archmap.js';
 import impactRouter from './routes/impact.js';
 import healthRouter from './routes/health.js';
 import wikiRouter from './routes/wiki.js';
+import predictRouter from './routes/predict.js';
 
 
 import { initializeWebSocketGateway } from './websocket/index.js';
@@ -132,6 +133,7 @@ app.use('/api/archmap', archmapRouter);
 app.use('/api/impact', impactRouter);
 app.use('/api/health', healthRouter);
 app.use('/api/wiki', wikiRouter);
+app.use('/api/predict', predictRouter);
 
 // Exception logs mapping
 process.on('uncaughtException', (err) => {

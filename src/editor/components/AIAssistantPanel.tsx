@@ -8,7 +8,7 @@ import {
   FileSearch, Wand2, Component, Bug, ChevronDown,
   Play, StopCircle, CheckCircle2, AlertCircle, Loader2,
   Search, Plus, PlusCircle, FileCode, Folder, Calendar, Info, Sparkles,
-  History, GitFork, Brain, Moon, Shield, Map, Activity, BookOpen, ShieldAlert
+  History, GitFork, Brain, Moon, Shield, Map, Activity, BookOpen, ShieldAlert, MessageCircle, TrendingUp
 } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
 import { NVIDIA_MODELS, NvidiaModel } from '@/services/aiStreamClient';
@@ -28,9 +28,12 @@ import { ImpactAnalysisPanel } from './ImpactAnalysisPanel';
 import { ProjectHealthPanel } from './ProjectHealthPanel';
 import { ProjectWikiPanel } from './ProjectWikiPanel';
 import { AiLearningPanel } from './AiLearningPanel';
+import { ProjectConversationPanel } from './ProjectConversationPanel';
+import { FutureSimulationPanel } from './FutureSimulationPanel';
+import { FailurePredictionPanel } from './FailurePredictionPanel';
 
 type Props  = { onClose: () => void };
-type PanelTab = 'chat' | 'agents' | 'memory' | 'brain' | 'archmap' | 'impact' | 'health' | 'wiki' | 'dna';
+type PanelTab = 'chat' | 'agents' | 'memory' | 'brain' | 'archmap' | 'impact' | 'health' | 'wiki' | 'dna' | 'talk' | 'sim' | 'predict';
 
 const quickActions = [
   { icon: FileSearch, title: 'Explain this code',   desc: 'Explain the selected code in detail.',    color: '#60a5fa', prompt: 'Explain the current file code clearly and in detail.' },
@@ -283,6 +286,9 @@ export function AIAssistantPanel({ onClose }: Props) {
     { id: 'health', label: 'HEALTH', icon: Activity },
     { id: 'wiki',   label: 'WIKI',   icon: BookOpen },
     { id: 'dna',    label: 'DNA',    icon: Sparkles },
+    { id: 'talk',   label: 'TALK',   icon: MessageCircle },
+    { id: 'sim',    label: 'SIM',    icon: TrendingUp },
+    { id: 'predict',label: 'PREDICT',icon: AlertCircle },
   ];
 
   return (
@@ -728,6 +734,18 @@ export function AIAssistantPanel({ onClose }: Props) {
 
         {activeTab === 'dna' && (
           <AiLearningPanel />
+        )}
+
+        {activeTab === 'talk' && (
+          <ProjectConversationPanel />
+        )}
+
+        {activeTab === 'sim' && (
+          <FutureSimulationPanel />
+        )}
+
+        {activeTab === 'predict' && (
+          <FailurePredictionPanel />
         )}
       </AnimatePresence>
     </div>
