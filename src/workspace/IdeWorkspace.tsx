@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ActivityBar } from '@/editor/components/ActivityBar';
@@ -21,7 +22,10 @@ import { ShortcutsModal } from '@/editor/components/ShortcutsModal';
 import { CloudProjectsModal } from '@/cloud/CloudProjectsModal';
 import { FloatingAIWidget } from '@/editor/components/FloatingAIWidget';
 import { ShieldAlert } from 'lucide-react';
-
+import { useAgentStore } from '@/store/useAgentStore';
+import { AiDiffApprovalModal } from '@/editor/components/AiDiffApprovalModal';
+import DreamModePanel from '@/editor/components/DreamModePanel';
+import { useDreamStore } from '@/store/useDreamStore';
 
 // ── Drag-resize handle ─────────────────────────────────────────────────────
 function ResizeHandle({
@@ -100,6 +104,14 @@ export function IdeWorkspace() {
   const [sidebarW,  setSidebarW]  = useState(DEFAULT_SIDEBAR_W);
   const [aiW,       setAiW]       = useState(DEFAULT_AI_W);
   const [terminalH, setTerminalH] = useState(DEFAULT_TERMINAL_H);
+
+  // Staged AI Diff Approval State
+  const pendingWrite = useAgentStore((s) => s.pendingWrite);
+  const acceptPendingWrite = useAgentStore((s) => s.acceptPendingWrite);
+  const rejectPendingWrite = useAgentStore((s) => s.rejectPendingWrite);
+
+  // Dream Mode State
+  const dreamStatus = useDreamStore((s) => s.dreamStatus);
 
   // Connect to gateway for runtime security events
   useEffect(() => {
@@ -598,6 +610,16 @@ export function IdeWorkspace() {
       <CloudProjectsModal isOpen={cloudOpen} onClose={() => setCloudOpen(false)} />
       <FloatingAIWidget />
 
+      {/* ── Agent Diff Write Approval Modal ── */}
+      <AiDiffApprovalModal
+        isOpen={!!pendingWrite}
+        fileName={pendingWrite?.path ?? ''}
+        originalCode={pendingWrite?.original ?? ''}
+        proposedCode={pendingWrite?.proposed ?? ''}
+        onAccept={acceptPendingWrite}
+        onReject={rejectPendingWrite}
+      />
+
       {/* ── Security Permission Overlay ── */}
       <AnimatePresence>
         {pendingPermission && (
@@ -722,6 +744,11 @@ export function IdeWorkspace() {
             </motion.div>
           </div>
         )}
+      </AnimatePresence>
+
+      {/* Dream Mode Overlay */}
+      <AnimatePresence>
+        {dreamStatus !== 'idle' && <DreamModePanel />}
       </AnimatePresence>
     </div>
   );

@@ -66,4 +66,28 @@ router.post('/semantic', async (req, res) => {
   }
 });
 
+// Semantic lookup over chat conversations
+router.post('/chat-semantic', async (req, res) => {
+  const { query, conversationId } = req.body;
+  if (!query) {
+    return res.status(400).json({ error: 'Query is required' });
+  }
+
+  const memoryEngine = req.app.get('memoryEngine');
+  if (!memoryEngine) {
+    return res.status(500).json({ error: 'Memory engine not initialized' });
+  }
+
+  try {
+    const results = await memoryEngine.search(query, ['conversation'], 10);
+    // If conversationId is provided, filter results to that conversation
+    const filtered = conversationId
+      ? results.filter(r => r.source === conversationId)
+      : results;
+    res.json({ results: filtered });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

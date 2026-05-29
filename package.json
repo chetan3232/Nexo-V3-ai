@@ -18,7 +18,8 @@
     "tauri:build": "tauri build",
     "apk:init": "capacitor add android",
     "apk:sync": "npm run build && capacitor sync android",
-    "apk:open": "capacitor open android"
+    "apk:open": "capacitor open android",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@capacitor/cli": "^8.3.4",
@@ -57,6 +58,7 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "react-doctor": "^0.2.11",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

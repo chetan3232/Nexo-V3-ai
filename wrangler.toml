@@ -1,6 +1,0 @@
-name = "nexo-v3"
-compatibility_date = "2026-05-26"
-pages_build_output_dir = "dist"
-
-[vars]
-VITE_NEXO_API_URL = "https://api.example.com"

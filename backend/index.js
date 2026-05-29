@@ -11,6 +11,7 @@ import authRouter from './routes/auth.js';
 import projectsRouter from './routes/projects.js';
 import filesRouter from './routes/files.js';
 import messagesRouter from './routes/messages.js';
+import conversationsRouter from './routes/conversations.js';
 import deploymentsRouter from './routes/deployments.js';
 import memoriesRouter from './routes/memories.js';
 import agentsRouter from './routes/agents.js';
@@ -21,6 +22,13 @@ import searchRouter from './routes/search.js';
 import syncRouter from './routes/sync.js';
 import vaultRouter, { decrypt } from './routes/vault.js';
 import analyticsRouter, { logBackendError } from './routes/analytics.js';
+import brainRouter from './routes/brain.js';
+import dreamRouter from './routes/dream.js';
+import archmapRouter from './routes/archmap.js';
+import impactRouter from './routes/impact.js';
+import healthRouter from './routes/health.js';
+import wikiRouter from './routes/wiki.js';
+import predictRouter from './routes/predict.js';
 
 
 import { initializeWebSocketGateway } from './websocket/index.js';
@@ -108,6 +116,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/files', filesRouter);
 app.use('/api/messages', messagesRouter);
+app.use('/api/conversations', conversationsRouter);
 app.use('/api/deployments', deploymentsRouter);
 app.use('/api/memories', memoriesRouter);
 app.use('/api/agents', agentsRouter);
@@ -118,6 +127,13 @@ app.use('/api/search', searchRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/vault', vaultRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/brain', brainRouter);
+app.use('/api/dream', dreamRouter);
+app.use('/api/archmap', archmapRouter);
+app.use('/api/impact', impactRouter);
+app.use('/api/health', healthRouter);
+app.use('/api/wiki', wikiRouter);
+app.use('/api/predict', predictRouter);
 
 // Exception logs mapping
 process.on('uncaughtException', (err) => {
@@ -354,7 +370,7 @@ app.post('/api/fs/delete', async (req, res) => {
 });
 
 // Initialize WebSocket gateway at /api/ws
-initializeWebSocketGateway(server, workspaceRoot, processManager);
+const wssGateway = initializeWebSocketGateway(server, workspaceRoot, processManager);
 
 // Maintain Legacy websocket at /api/ai/ws
 const wssLegacy = new WebSocketServer({ noServer: true });
@@ -370,11 +386,21 @@ wssLegacy.on('connection', (socket) => {
 
 // Delegate WebSocket connections based on request path
 server.on('upgrade', (request, socket, head) => {
-  const { pathname } = new URL(request.url, `http://${request.headers.host}`);
-  if (pathname === '/api/ai/ws') {
-    wssLegacy.handleUpgrade(request, socket, head, (ws) => {
-      wssLegacy.emit('connection', ws, request);
-    });
+  try {
+    const { pathname } = new URL(request.url, `http://${request.headers.host}`);
+    if (pathname === '/api/ai/ws') {
+      wssLegacy.handleUpgrade(request, socket, head, (ws) => {
+        wssLegacy.emit('connection', ws, request);
+      });
+    } else if (pathname === '/api/ws') {
+      wssGateway.handleUpgrade(request, socket, head, (ws) => {
+        wssGateway.emit('connection', ws, request);
+      });
+    } else {
+      socket.destroy();
+    }
+  } catch (e) {
+    socket.destroy();
   }
 });
 

@@ -23,12 +23,16 @@ export function AISpotlight({ isOpen, onClose }: Props) {
 
   // Focus input on open
   useEffect(() => {
+    let timer: NodeJS.Timeout;
     if (isOpen) {
       setQuery('');
       setResponse('');
       setLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      timer = setTimeout(() => inputRef.current?.focus(), 50);
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [isOpen]);
 
   // Scroll to bottom on streaming text update

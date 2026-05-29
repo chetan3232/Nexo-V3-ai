@@ -42,11 +42,15 @@ export function CommandPalette({ open, onClose }: Props) {
 
   // Reset when opened
   useEffect(() => {
+    let timer: NodeJS.Timeout;
     if (open) {
       setQuery('');
       setSelected(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      timer = setTimeout(() => inputRef.current?.focus(), 50);
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [open]);
 
   const commands: CommandItem[] = [
