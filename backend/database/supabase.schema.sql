@@ -254,3 +254,66 @@ create trigger trigger_update_files_updated_at before update on public.files for
 create trigger trigger_update_deployments_updated_at before update on public.deployments for each row execute function public.update_updated_at_column();
 create trigger trigger_update_memories_updated_at before update on public.memories for each row execute function public.update_updated_at_column();
 create trigger trigger_update_agents_updated_at before update on public.agents for each row execute function public.update_updated_at_column();
+
+-- =========================================================================
+-- 9. CONVERSATIONS TABLE
+-- =========================================================================
+create table if not exists public.conversations (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  title text not null default 'New Conversation',
+  model text not null,
+  is_pinned boolean not null default false,
+  is_favorite boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- RLS for Conversations
+alter table public.conversations enable row level security;
+create policy "Users can manage conversations of their projects"
+  on public.conversations for all
+  using (project_id in (select id from public.projects where owner_id = auth.uid()) or auth.role() = 'service_role');
+
+-- Add conversation columns to Messages
+alter table public.messages add column if not exists conversation_id uuid references public.conversations(id) on delete cascade;
+alter table public.messages add column if not exists tokens_used integer default 0;
+alter table public.messages add column if not exists has_attachments boolean default false;
+
+-- =========================================================================
+-- 10. ATTACHMENTS TABLE
+-- =========================================================================
+create table if not exists public.attachments (
+  id uuid primary key default gen_random_uuid(),
+  message_id uuid not null references public.messages(id) on delete cascade,
+  file_name text not null,
+  file_size integer not null default 0,
+  mime_type text,
+  file_path text not null,
+  created_at timestamptz not null default now()
+);
+
+-- RLS for Attachments
+alter table public.attachments enable row level security;
+create policy "Users can manage attachments of their messages"
+  on public.attachments for all
+  using (message_id in (select id from public.messages where conversation_id in (select id from public.conversations where project_id in (select id from public.projects where owner_id = auth.uid()))) or auth.role() = 'service_role');
+
+-- =========================================================================
+-- 11. CHAT_BRANCHES TABLE
+-- =========================================================================
+create table if not exists public.chat_branches (
+  id uuid primary key default gen_random_uuid(),
+  parent_conversation_id uuid not null references public.conversations(id) on delete cascade,
+  forked_message_id uuid not null references public.messages(id) on delete cascade,
+  branched_conversation_id uuid not null references public.conversations(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+-- RLS for Chat Branches
+alter table public.chat_branches enable row level security;
+create policy "Users can manage chat branches"
+  on public.chat_branches for all
+  using (parent_conversation_id in (select id from public.conversations where project_id in (select id from public.projects where owner_id = auth.uid())) or auth.role() = 'service_role');
+
+create trigger trigger_update_conversations_updated_at before update on public.conversations for each row execute function public.update_updated_at_column();
