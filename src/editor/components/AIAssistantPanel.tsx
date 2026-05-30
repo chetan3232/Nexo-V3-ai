@@ -23,6 +23,7 @@ import CtoReportCard from './CtoReportCard';
 import { useCtoStore } from '@/store/useCtoStore';
 import { useDreamStore } from '@/store/useDreamStore';
 import { useProjectBrainStore } from '@/store/useProjectBrainStore';
+import { useHealthStore } from '@/store/useHealthStore';
 import { ArchitectureMapPanel } from './ArchitectureMapPanel';
 import { ImpactAnalysisPanel } from './ImpactAnalysisPanel';
 import { ProjectHealthPanel } from './ProjectHealthPanel';
@@ -58,6 +59,30 @@ export function AIAssistantPanel({ onClose }: Props) {
   } = useChatStore();
   const { files, activeFile } = useEditorStore();
   
+  const { brain, scanStatus, scanProgress } = useProjectBrainStore();
+  const { healthScore, categories, suggestions } = useHealthStore();
+
+  const riskAreas = useMemo(() => {
+    const list: string[] = [];
+    const securityCat = categories.find(c => c.name === 'security');
+    const performanceCat = categories.find(c => c.name === 'performance');
+    const maintainabilityCat = categories.find(c => c.name === 'maintainability');
+
+    if (securityCat && securityCat.score < 90) list.push('Auth & Credentials');
+    if (brain.stack.stateManager === 'Unknown') list.push('State Management');
+    if (performanceCat && performanceCat.score < 90) list.push('Performance');
+    if (maintainabilityCat && maintainabilityCat.score < 90) list.push('Complexity & Nesting');
+    
+    if (list.length === 0) {
+      if (brain.stack.framework === 'Unknown') {
+        list.push('Analysis Pending');
+      } else {
+        list.push('None detected');
+      }
+    }
+    return list;
+  }, [categories, brain.stack.stateManager, brain.stack.framework]);
+
   const { lastReport, ctoEnabled, toggleCto, isAnalyzing } = useCtoStore();
   const { isDreamMode, toggleDreamMode, startDream } = useDreamStore();
 
@@ -278,15 +303,15 @@ export function AIAssistantPanel({ onClose }: Props) {
 
   const tabs: { id: PanelTab; label: string; icon: React.ElementType }[] = [
     { id: 'chat',   label: 'CHAT',   icon: MessageSquare },
-    { id: 'agents', label: 'AGENTS', icon: Cpu },
-    { id: 'memory', label: 'MEMORY', icon: Database },
+    { id: 'talk',   label: 'ASK PROJECT', icon: MessageCircle },
     { id: 'brain',  label: 'BRAIN',  icon: Brain },
-    { id: 'archmap',label: 'MAP',    icon: Map },
     { id: 'impact', label: 'RISK',   icon: ShieldAlert },
     { id: 'health', label: 'HEALTH', icon: Activity },
+    { id: 'agents', label: 'AGENTS', icon: Cpu },
+    { id: 'memory', label: 'MEMORY', icon: Database },
+    { id: 'archmap',label: 'MAP',    icon: Map },
     { id: 'wiki',   label: 'WIKI',   icon: BookOpen },
     { id: 'dna',    label: 'DNA',    icon: Sparkles },
-    { id: 'talk',   label: 'TALK',   icon: MessageCircle },
     { id: 'sim',    label: 'SIM',    icon: TrendingUp },
     { id: 'predict',label: 'PREDICT',icon: AlertCircle },
   ];
@@ -383,14 +408,98 @@ export function AIAssistantPanel({ onClose }: Props) {
                 {/* Welcome / Quick actions */}
                 {messages.length === 0 && (
                   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '16px', gap: '12px' }}
+                    style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '8px' }}
                   >
-                    <div style={{ fontSize: '28px', lineHeight: 1 }}>✦</div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '15px', fontWeight: 600, color: '#e2e8f0', marginBottom: '4px' }}>Hello, Developer! 👋</div>
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>How can I help you today?</div>
+                    {/* NEXO Brain Auto-Dashboard Card */}
+                    <div style={{
+                      background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)',
+                      border: '1px solid rgba(59, 130, 246, 0.18)',
+                      borderRadius: '10px',
+                      padding: '12px 14px',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
+                      backdropFilter: 'blur(10px)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Brain size={14} color="#60a5fa" className={scanStatus === 'scanning' ? 'animate-spin' : ''} />
+                          <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', color: '#60a5fa' }}>NEXO BRAIN</span>
+                        </div>
+                        <span style={{ fontSize: '9px', color: '#6b7280', fontWeight: 700 }}>AUTO-ANALYZED</span>
+                      </div>
+
+                      {scanStatus === 'scanning' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '6px 0' }}>
+                          <span style={{ fontSize: '12px', color: '#e2e8f0', fontWeight: 600 }}>Analyzing Project DNA...</span>
+                          <div style={{ width: '100%', height: '4px', background: '#1f2937', borderRadius: '2px', overflow: 'hidden' }}>
+                            <div style={{ width: `${scanProgress}%`, height: '100%', background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)', borderRadius: '2px', transition: 'width 0.3s ease' }} />
+                          </div>
+                          <span style={{ fontSize: '9.5px', color: '#6b7280' }}>Mapping architecture, stack, APIs, and dependencies ({scanProgress}%)</span>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <span style={{ fontSize: '9.5px', color: '#4b5563', fontWeight: 700, letterSpacing: '0.04em' }}>STACK DETECTED</span>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {brain.stack.framework !== 'Unknown' && <span style={{ fontSize: '10px', background: 'rgba(96, 165, 250, 0.12)', border: '1px solid rgba(96, 165, 250, 0.25)', color: '#60a5fa', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>{brain.stack.framework}</span>}
+                              {brain.stack.database !== 'Unknown' && <span style={{ fontSize: '10px', background: 'rgba(52, 211, 153, 0.12)', border: '1px solid rgba(52, 211, 153, 0.25)', color: '#34d399', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>{brain.stack.database}</span>}
+                              {brain.stack.styling !== 'Unknown' && <span style={{ fontSize: '10px', background: 'rgba(167, 139, 250, 0.12)', border: '1px solid rgba(167, 139, 250, 0.25)', color: '#a78bfa', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>{brain.stack.styling}</span>}
+                              {brain.stack.framework === 'Unknown' && <span style={{ fontSize: '10.5px', color: '#6b7280', fontStyle: 'italic' }}>No project loaded yet. Open a folder to begin.</span>}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px' }}>
+                            <div>
+                              <span style={{ fontSize: '9.5px', color: '#4b5563', fontWeight: 700, letterSpacing: '0.04em', display: 'block', marginBottom: '2px' }}>ARCHITECTURE SCORE</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '15px', fontWeight: 800, color: healthScore >= 80 ? '#34d399' : healthScore >= 60 ? '#fbbf24' : '#f87171' }}>{healthScore}%</span>
+                                <span style={{ fontSize: '9px', color: '#6b7280' }}>comprehensive</span>
+                              </div>
+                            </div>
+                            <div>
+                              <span style={{ fontSize: '9.5px', color: '#4b5563', fontWeight: 700, letterSpacing: '0.04em', display: 'block', marginBottom: '2px' }}>RISK AREAS</span>
+                              <div style={{ fontSize: '11px', color: '#e2e8f0', fontWeight: 600, display: 'flex', flexDirection: 'column' }}>
+                                {riskAreas.slice(0, 2).map((risk, i) => (
+                                  <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: risk === 'None detected' ? '#34d399' : '#ef4444' }} />
+                                    {risk}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px', fontSize: '11px' }}>
+                            <span style={{ color: '#9ca3af', fontWeight: 500 }}>
+                              Suggestions: <b style={{ color: '#fbbf24' }}>{suggestions.length} detected</b>
+                            </span>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab('brain')}
+                                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid #1f2937', borderRadius: '4px', color: '#e2e8f0', padding: '3px 8px', fontSize: '10px', fontWeight: 600, cursor: 'pointer' }}
+                              >
+                                View Brain
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab('talk')}
+                                style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '4px', color: '#60a5fa', padding: '3px 8px', fontSize: '10px', fontWeight: 600, cursor: 'pointer' }}
+                              >
+                                Ask Project
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', width: '100%', marginTop: '4px' }}>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', margin: '4px 0 2px' }}>
+                      <div style={{ flex: 1, height: '1px', background: '#1f2937' }} />
+                      <span style={{ fontSize: '10px', color: '#4b5563', fontWeight: 700, letterSpacing: '0.08em' }}>QUICK ACTIONS</span>
+                      <div style={{ flex: 1, height: '1px', background: '#1f2937' }} />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', width: '100%' }}>
                       {quickActions.map((action) => {
                         const Icon = action.icon;
                         return (

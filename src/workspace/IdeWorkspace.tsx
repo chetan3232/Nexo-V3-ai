@@ -28,6 +28,8 @@ import DreamModePanel from '@/editor/components/DreamModePanel';
 import { useDreamStore } from '@/store/useDreamStore';
 import { SettingsModal } from '@/editor/components/SettingsModal';
 import { ProfileDropdown } from '@/editor/components/ProfileDropdown';
+import { useProjectBrainStore } from '@/store/useProjectBrainStore';
+import { useHealthStore } from '@/store/useHealthStore';
 
 // ── Drag-resize handle ─────────────────────────────────────────────────────
 function ResizeHandle({
@@ -165,10 +167,19 @@ export function IdeWorkspace() {
   } = useIdeLayoutStore();
 
   const loadWorkspaceRoot = useFileSystemStore((s) => s.loadWorkspaceRoot);
+  const workspacePath = useFileSystemStore((s) => s.workspacePath);
 
   useEffect(() => {
     void loadWorkspaceRoot().catch(() => undefined);
   }, [loadWorkspaceRoot]);
+
+  // Auto trigger Project DNA Brain Scan and Health audits on workspace path change
+  useEffect(() => {
+    if (workspacePath) {
+      void useProjectBrainStore.getState().scanProject().catch(() => undefined);
+      void useHealthStore.getState().calculateHealth().catch(() => undefined);
+    }
+  }, [workspacePath]);
 
   // Restore layout and editor settings on workspace initialization
   useEffect(() => {
