@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Heart, Github, Cpu, Menu } from 'lucide-react';
+import logoImage from '@/logo/image.png';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
@@ -17,9 +18,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         <header className="fixed top-0 w-full z-40 transition-all duration-300 bg-[#fbf9f6]/80 backdrop-blur-xl border-b border-stone-200/50">
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2.5 group">
-              <div className="w-9 h-9 bg-gradient-to-br from-stone-800 to-black rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-300">
-                <Heart className="w-4 h-4 text-white fill-current animate-pulse-slow" />
-              </div>
+              <img src={logoImage} alt="Nexo Logo" className="w-9 h-9 rounded-full object-cover shadow-lg group-hover:scale-105 transition-transform duration-300" />
               <span className="font-bold text-lg tracking-tight text-stone-900">Nexo v3</span>
             </Link>
 

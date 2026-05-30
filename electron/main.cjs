@@ -210,25 +210,6 @@ function createWindow() {
   createApplicationMenu(window);
 
   window.webContents.setWindowOpenHandler(({ url }) => {
-    // Allow Firebase Authentication popups to open as child windows in Electron
-    if (url.includes('/__/auth/handler') || url.includes('firebaseapp.com')) {
-      return {
-        action: 'allow',
-        overrideBrowserWindowOptions: {
-          parent: window,
-          modal: true,
-          width: 580,
-          height: 680,
-          title: 'Sign In with Google - Nexo IDE',
-          autoHideMenuBar: true,
-          webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-            sandbox: true,
-          }
-        }
-      };
-    }
     shell.openExternal(url);
     return { action: 'deny' };
   });

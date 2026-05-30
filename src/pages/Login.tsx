@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth/useAuth';
-import { Shield, Sparkles, Terminal, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import logoImage from '@/logo/image.png';
 
 const Login: React.FC = () => {
   const { signInWithGoogle, isAuthenticated, isAuthLoading, authError, isMock, rememberMe, setRememberMe } = useAuth();
@@ -45,25 +46,10 @@ const Login: React.FC = () => {
         {/* Branding Header */}
         <div style={brandHeaderStyle}>
           <div style={logoIconStyle}>
-            <Sparkles size={22} color="#06b6d4" />
+            <img src={logoImage} alt="Nexo Logo" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
           </div>
           <h1 style={titleStyle}>NEXO <span style={titleAccentStyle}>V3</span></h1>
           <p style={subtitleStyle}>Next-Generation Multi-Agent IDE & Runtime</p>
-        </div>
-
-        {/* Security / Mode Status Badge */}
-        <div style={isMock ? mockBadgeContainer : firebaseBadgeContainer}>
-          {isMock ? (
-            <>
-              <Terminal size={13} style={{ color: '#fb923c' }} />
-              <span style={{ fontSize: '11px', color: '#fdba74', fontWeight: 600 }}>Developer Mock Mode Active</span>
-            </>
-          ) : (
-            <>
-              <Shield size={13} style={{ color: '#4ade80' }} />
-              <span style={{ fontSize: '11px', color: '#86efac', fontWeight: 600 }}>Firebase Protected Mode</span>
-            </>
-          )}
         </div>
 
         {/* Informative Alert for Mock Mode */}
@@ -226,9 +212,7 @@ const logoIconStyle: React.CSSProperties = {
   justifyContent: 'center',
   width: '48px',
   height: '48px',
-  background: 'rgba(6, 182, 212, 0.08)',
-  border: '1px solid rgba(6, 182, 212, 0.2)',
-  borderRadius: '12px',
+  borderRadius: '50%',
   marginBottom: '14px',
 };
 

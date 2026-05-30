@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from './useAuth';
+import logoImage from '@/logo/image.png';
 
 export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isAuthLoading } = useAuth();
@@ -37,15 +38,13 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
             borderRadius: '50%',
             animation: 'spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite',
           }} />
-          <div className="nexo-logo-text" style={{
-            color: '#e2e8f0',
-            fontSize: '11px',
-            fontWeight: 800,
-            letterSpacing: '0.1em',
+          <img src={logoImage} alt="Nexo Logo" style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '50%',
+            objectFit: 'cover',
             animation: 'pulse 1.6s ease-in-out infinite',
-          }}>
-            NEXO
-          </div>
+          }} />
         </div>
         
         {/* Loading text */}
@@ -57,7 +56,7 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
           textTransform: 'uppercase',
           fontWeight: 500,
         }}>
-          Verifying Secure Session...
+          Verifying Session...
         </div>
 
         {/* Embedded animations */}
