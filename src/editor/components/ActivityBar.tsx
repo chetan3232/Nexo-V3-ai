@@ -29,9 +29,11 @@ const bottomItems: ActivityItem[] = [
 type Props = {
   activeIndex: number;
   onSelect: (index: number) => void;
+  onToggleProfile?: () => void;
+  onToggleSettings?: () => void;
 };
 
-export function ActivityBar({ activeIndex, onSelect }: Props) {
+export function ActivityBar({ activeIndex, onSelect, onToggleProfile, onToggleSettings }: Props) {
   return (
     <aside
       style={{
@@ -103,9 +105,12 @@ export function ActivityBar({ activeIndex, onSelect }: Props) {
       <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
         {bottomItems.map((item) => {
           const Icon = item.icon;
+          const isAccount = item.id === 'account';
+          const onClick = isAccount ? onToggleProfile : onToggleSettings;
           return (
             <button
               key={item.id}
+              onClick={onClick}
               title={item.label}
               style={{
                 display: 'flex',

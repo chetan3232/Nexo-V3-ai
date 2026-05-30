@@ -26,6 +26,8 @@ import { useAgentStore } from '@/store/useAgentStore';
 import { AiDiffApprovalModal } from '@/editor/components/AiDiffApprovalModal';
 import DreamModePanel from '@/editor/components/DreamModePanel';
 import { useDreamStore } from '@/store/useDreamStore';
+import { SettingsModal } from '@/editor/components/SettingsModal';
+import { ProfileDropdown } from '@/editor/components/ProfileDropdown';
 
 // ── Drag-resize handle ─────────────────────────────────────────────────────
 function ResizeHandle({
@@ -113,6 +115,9 @@ export function IdeWorkspace() {
   // Dream Mode State
   const dreamStatus = useDreamStore((s) => s.dreamStatus);
 
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+
   // Connect to gateway for runtime security events
   useEffect(() => {
     const API_BASE = import.meta.env.VITE_NEXO_API_URL ?? 'http://localhost:8787';
@@ -164,6 +169,31 @@ export function IdeWorkspace() {
   useEffect(() => {
     void loadWorkspaceRoot().catch(() => undefined);
   }, [loadWorkspaceRoot]);
+
+  // Restore layout and editor settings on workspace initialization
+  useEffect(() => {
+    // Restore theme style
+    const theme = localStorage.getItem('nexo-theme') || 'dark';
+    if (theme === 'light') {
+      document.body.style.filter = 'invert(0.9) hue-rotate(180deg)';
+    }
+
+    // Restore sidebar and terminal layout sizes
+    const savedSidebarW = localStorage.getItem('nexo-sidebar-width');
+    if (savedSidebarW) {
+      setSidebarW(parseInt(savedSidebarW));
+    }
+    const savedTerminalH = localStorage.getItem('nexo-terminal-height');
+    if (savedTerminalH) {
+      setTerminalH(parseInt(savedTerminalH));
+    }
+
+    // Restore last workspace folder path
+    const lastWorkspace = localStorage.getItem('nexo-last-workspace');
+    if (lastWorkspace) {
+      void useFileSystemStore.getState().openFolder(lastWorkspace).catch(() => undefined);
+    }
+  }, []);
 
   // Unified action routing function
   const handleCommand = useCallback((command: string, payload?: any) => {
@@ -465,7 +495,11 @@ export function IdeWorkspace() {
 
   // Resize callbacks
   const onSidebarDrag = useCallback((delta: number) => {
-    setSidebarW((w) => Math.min(MAX_SIDEBAR_W, Math.max(MIN_SIDEBAR_W, w + delta)));
+    setSidebarW((w) => {
+      const next = Math.min(MAX_SIDEBAR_W, Math.max(MIN_SIDEBAR_W, w + delta));
+      localStorage.setItem('nexo-sidebar-width', next.toString());
+      return next;
+    });
   }, []);
 
   const onAiDrag = useCallback((delta: number) => {
@@ -476,6 +510,7 @@ export function IdeWorkspace() {
     setTerminalH((h) => {
       const next = Math.min(MAX_TERMINAL_H, Math.max(MIN_TERMINAL_H, h - delta));
       setBottomPanelCollapsed(next <= MIN_TERMINAL_H + 4);
+      localStorage.setItem('nexo-terminal-height', next.toString());
       return next;
     });
   }, [setBottomPanelCollapsed]);
@@ -508,6 +543,8 @@ export function IdeWorkspace() {
             setActiveIcon(idx);
             if (sidebarCollapsed) setSidebarCollapsed(false);
           }}
+          onToggleProfile={() => setProfileOpen((prev) => !prev)}
+          onToggleSettings={() => setSettingsOpen((prev) => !prev)}
         />
 
         {/* Sidebar */}
@@ -750,6 +787,10 @@ export function IdeWorkspace() {
       <AnimatePresence>
         {dreamStatus !== 'idle' && <DreamModePanel />}
       </AnimatePresence>
+
+      {/* Settings & Profile Overlay Modals */}
+      <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <ProfileDropdown isOpen={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>
   );
 }
