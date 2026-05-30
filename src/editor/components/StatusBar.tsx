@@ -41,7 +41,9 @@ export function StatusBar({ aiPanelOpen, sidebarOpen }: Props) {
   const { activeFile, files } = useEditorStore();
   const activeFileData = activeFile ? files[activeFile] : null;
   const { report } = useImpactStore();
-  const { healthScore } = useHealthStore();
+  const { healthScore, categories } = useHealthStore();
+  const securityScore = categories.find(c => c.name === 'security')?.score ?? 100;
+  const performanceScore = categories.find(c => c.name === 'performance')?.score ?? 100;
 
   const langLabel: Record<string, string> = {
     typescript: 'TypeScript React',
@@ -100,6 +102,26 @@ export function StatusBar({ aiPanelOpen, sidebarOpen }: Props) {
         }} title="Project codebase health audit score">
           <Activity size={12} />
           <span>Health: {healthScore}%</span>
+        </StatusItem>
+
+        <Divider />
+
+        <StatusItem onClick={() => {
+          window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-ai', payload: true } }));
+          window.dispatchEvent(new CustomEvent('nexo-assistant-tab', { detail: { tab: 'health' } }));
+        }} title="Codebase security audit score">
+          <ShieldAlert size={12} style={{ color: securityScore < 70 ? '#ef4444' : securityScore < 85 ? '#f59e0b' : '#34d399' }} />
+          <span>Security: {securityScore}%</span>
+        </StatusItem>
+
+        <Divider />
+
+        <StatusItem onClick={() => {
+          window.dispatchEvent(new CustomEvent('nexo-layout-command', { detail: { command: 'toggle-ai', payload: true } }));
+          window.dispatchEvent(new CustomEvent('nexo-assistant-tab', { detail: { tab: 'health' } }));
+        }} title="Codebase performance audit score">
+          <Zap size={12} style={{ color: performanceScore < 70 ? '#ef4444' : performanceScore < 85 ? '#f59e0b' : '#34d399' }} />
+          <span>Performance: {performanceScore}%</span>
         </StatusItem>
       </div>
 

@@ -162,6 +162,7 @@ export const useFileSystemStore = create<FileSystemState>((set, get) => ({
     const recent = get().recentProjects.filter((p) => p !== newPath);
     const updatedRecent = [newPath, ...recent].slice(0, 5);
     localStorage.setItem('nexo_recent_projects', JSON.stringify(updatedRecent));
+    localStorage.setItem('nexo-last-workspace', newPath);
     
     // Clear opened file tabs to avoid referencing files from the old workspace
     useEditorStore.getState().clearTabs();

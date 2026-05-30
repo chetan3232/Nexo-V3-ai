@@ -98,11 +98,15 @@ export const NVIDIA_MODELS: NvidiaModel[] = [
   // ── Auto Router ──
   { id: 'nexo-auto-router',                        label: '✦ Nexo Auto Router',       provider: 'Nexo AI',    category: 'reasoning', contextK: 128 },
 
-  // ── NVIDIA NIM (Direct Coding / Reasoning) ──
+  // ── NVIDIA NIM (Direct Coding / Reasoning / Chat) ──
+  { id: 'meta/llama-3.3-70b-instruct',            label: 'Llama 3.3 70B (NIM)',      provider: 'NVIDIA',     category: 'general',   contextK: 128 },
+  { id: 'qwen/qwen3-coder-480b-a35b-instruct',    label: 'Qwen3 Coder 480B (NIM)',   provider: 'NVIDIA',     category: 'coding',    contextK: 128 },
+  { id: 'deepseek-ai/deepseek-r1',                label: 'DeepSeek R1 (NIM)',        provider: 'NVIDIA',     category: 'reasoning', contextK: 128 },
+
+  // ── Legacy NVIDIA NIM Models ──
   { id: 'z-ai/glm-5.1',                            label: 'GLM 5.1 (NIM)',            provider: 'NVIDIA',     category: 'reasoning', contextK: 128 },
   { id: 'stepfun-ai/step-3.7-flash',               label: 'Step 3.7 Flash (NIM)',     provider: 'NVIDIA',     category: 'coding',    contextK: 128 },
   { id: 'minimaxai/minimax-m2.7',                  label: 'Minimax M2.7 (NIM)',       provider: 'NVIDIA',     category: 'general',   contextK: 128 },
-  { id: 'qwen/qwen3-coder-480b-a35b-instruct',    label: 'Qwen3 Coder 480B (NIM)',   provider: 'NVIDIA',     category: 'coding',    contextK: 128 },
 ];
 
 export const DEFAULT_MODEL = 'nexo-auto-router';
@@ -129,7 +133,7 @@ export function detectTaskType(messages: ChatMessage[]): 'cheap' | 'coding' | 'r
   if (lowercase.includes('refactor') || lowercase.includes('generate component') || lowercase.includes('document code') || lowercase.includes('write a code') || lowercase.includes('fix bug') || lowercase.includes('edit the provided code')) {
     return 'coding';
   }
-  if (lowercase.includes('plan') || lowercase.includes('reason') || lowercase.includes('agent') || lowercase.includes('architect') || lowercase.includes('solve this complex')) {
+  if (lowercase.includes('plan') || lowercase.includes('reason') || lowercase.includes('agent') || lowercase.includes('architect') || lowercase.includes('solve this complex') || lowercase.includes('cto') || lowercase.includes('review') || lowercase.includes('impact')) {
     return 'reasoning';
   }
   return 'general';
@@ -138,15 +142,15 @@ export function detectTaskType(messages: ChatMessage[]): 'cheap' | 'coding' | 'r
 // ── Auto Model Router ─────────────────────────────────────────────────────
 export function routeModelAutomatically(taskType: 'cheap' | 'coding' | 'reasoning' | 'general'): string {
   if (taskType === 'reasoning') {
-    return 'z-ai/glm-5.1';
+    return 'deepseek-ai/deepseek-r1';
   }
   if (taskType === 'coding') {
     return 'qwen/qwen3-coder-480b-a35b-instruct';
   }
   if (taskType === 'cheap') {
-    return 'stepfun-ai/step-3.7-flash';
+    return 'meta/llama-3.3-70b-instruct';
   }
-  return 'minimaxai/minimax-m2.7';
+  return 'meta/llama-3.3-70b-instruct';
 }
 
 // ── SSE Stream Parsers ─────────────────────────────────────────────────────
@@ -576,6 +580,10 @@ async function streamDeepSeek(
 
 function getFallbackNvidiaModel(modelId: string): string | null {
   switch (modelId) {
+    case 'deepseek-ai/deepseek-r1':
+      return 'meta/llama-3.3-70b-instruct';
+    case 'meta/llama-3.3-70b-instruct':
+      return 'qwen/qwen3-coder-480b-a35b-instruct';
     case 'z-ai/glm-5.1':
       return 'stepfun-ai/step-3.7-flash';
     default:
@@ -618,7 +626,15 @@ async function streamNvidiaResponseDirect(
           stream:      true,
         };
 
-        if (currentModel === 'z-ai/glm-5.1') {
+        if (currentModel === 'deepseek-ai/deepseek-r1') {
+          requestBody.max_tokens = 8192;
+          requestBody.temperature = 0.6;
+          requestBody.top_p = 0.95;
+        } else if (currentModel === 'meta/llama-3.3-70b-instruct') {
+          requestBody.max_tokens = 4096;
+          requestBody.temperature = 0.7;
+          requestBody.top_p = 0.9;
+        } else if (currentModel === 'z-ai/glm-5.1') {
           requestBody.chat_template_kwargs = { "enable_thinking": true, "clear_thinking": false };
           requestBody.max_tokens = 16384;
           requestBody.temperature = 1.0;

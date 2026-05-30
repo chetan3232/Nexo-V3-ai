@@ -95,10 +95,62 @@ router.post('/analyze', async (req, res) => {
     ];
 
     // 4. Try LLM Refinement if keys are active
+    const nvidiaKey = process.env.NVIDIA_API_KEY;
     const geminiKey = process.env.GEMINI_API_KEY;
     const openaiKey = process.env.OPENAI_API_KEY;
 
-    if (geminiKey) {
+    if (nvidiaKey) {
+      try {
+        const prompt = `You are a Senior Project Architect. Perform a codebase Impact Analysis for the following planned change:
+Target File: ${cleanTarget}
+Planned Change: ${cleanDesc}
+Files depending on this target: ${JSON.stringify(dependents)}
+
+Return a JSON object containing:
+- overallRisk: "low" | "medium" | "high" | "critical"
+- breakageScenarios: string[] (top 2-3 specific breakage risks)
+- safeRefactorSteps: string[] (top 3-4 refactor safety steps)
+
+Output raw JSON only. Do not write markdown tags or extra explanations.`;
+
+        const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${nvidiaKey}`
+          },
+          body: JSON.stringify({
+            model: 'deepseek-ai/deepseek-r1',
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.6,
+            max_tokens: 4096
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          let content = result.choices?.[0]?.message?.content || '';
+          
+          // Clean thinking blocks from reasoning models
+          if (content.includes('</think>')) {
+            content = content.split('</think>').pop().trim();
+          }
+          
+          // Clean markdown wrapper
+          content = content.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '').trim();
+          
+          const parsed = JSON.parse(content);
+          if (parsed.overallRisk) overallRisk = parsed.overallRisk;
+          if (parsed.breakageScenarios) breakageScenarios = parsed.breakageScenarios;
+          if (parsed.safeRefactorSteps) safeRefactorSteps = parsed.safeRefactorSteps;
+        } else {
+          const text = await response.text();
+          console.error(`[Impact Backend] NVIDIA NIM API failed with status ${response.status}: ${text}`);
+        }
+      } catch (e) {
+        console.error('[Impact Backend] NVIDIA NIM refinement skipped or failed:', e.message);
+      }
+    } else if (geminiKey) {
       try {
         const prompt = `You are a Senior Project Architect. Perform a codebase Impact Analysis for the following planned change:
 Target File: ${cleanTarget}
