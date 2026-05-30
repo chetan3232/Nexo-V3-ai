@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth/useAuth';
 import { AlertCircle } from 'lucide-react';
 import logoImage from '@/logo/image.png';
+import { useNotificationStore } from '@/store/useNotificationStore';
 
 const Login: React.FC = () => {
   const { signInWithGoogle, isAuthenticated, isAuthLoading, authError, isMock, rememberMe, setRememberMe } = useAuth();
@@ -10,6 +11,7 @@ const Login: React.FC = () => {
   const location = useLocation();
   const [submitting, setSubmitting] = useState(false);
   const [showError, setShowError] = useState(authError);
+  const showToast = useNotificationStore((s) => s.showToast);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -26,7 +28,12 @@ const Login: React.FC = () => {
   const handleGoogleLogin = async () => {
     setSubmitting(true);
     try {
-      await signInWithGoogle();
+      const loggedUser = await signInWithGoogle();
+      if (loggedUser) {
+        showToast(`Welcome back, ${loggedUser.displayName || 'Developer'}! Sign-in successful.`, 'success');
+        const redirectPath = (location.state as any)?.from?.pathname || '/ide';
+        navigate(redirectPath, { replace: true });
+      }
     } catch (e) {
       console.error(e);
     } finally {
