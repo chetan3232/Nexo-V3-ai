@@ -226,11 +226,11 @@ export function Sidebar({ collapsed, activeTab }: Props) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'M': return '#f59e0b'; // modified
-      case 'A': return '#10b981'; // added
-      case 'D': return '#ef4444'; // deleted
-      case '??': return '#6b7280'; // untracked
-      default: return '#9ca3af';
+      case 'M': return 'var(--amber)'; // modified
+      case 'A': return 'var(--green)'; // added
+      case 'D': return 'var(--red)'; // deleted
+      case '??': return 'var(--text-muted)'; // untracked
+      default: return 'var(--text-secondary)';
     }
   };
 
@@ -245,8 +245,8 @@ export function Sidebar({ collapsed, activeTab }: Props) {
         animate="visible"
         style={{
           height: '100%',
-          background: '#111827',
-          borderRight: '1px solid #1f2937',
+          background: 'var(--bg-sidebar)',
+          borderRight: '1px solid var(--border)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -268,7 +268,7 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                 fontWeight: 700,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
-                color: '#c9d1d9',
+                color: 'var(--text-primary)',
               }}>
                 Explorer
               </span>
@@ -293,11 +293,11 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                       title={titleText}
                       style={{
                         background: 'none', border: 'none', padding: '3px',
-                        cursor: 'pointer', color: '#4b5563', borderRadius: '4px',
+                        cursor: 'pointer', color: 'var(--text-muted)', borderRadius: '4px',
                         display: 'flex', transition: 'color 100ms',
                       }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#4b5563'; }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}
                     >
                       <Icon size={14} />
                     </button>
@@ -320,13 +320,13 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                   fontWeight: 700,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  color: '#c9d1d9',
+                  color: 'var(--text-primary)',
                   cursor: 'pointer',
                 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.color = '#3b82f6'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.color = '#c9d1d9'; }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.color = 'var(--accent)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.color = 'var(--text-primary)'; }}
               >
-                <span style={{ fontSize: '10px', color: '#6b7280' }}>▾</span>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>▾</span>
                 <span>{rootFolderName}</span>
               </div>
 
@@ -335,7 +335,7 @@ export function Sidebar({ collapsed, activeTab }: Props) {
             </div>
 
             {/* Outline section */}
-            <div style={{ borderTop: '1px solid #1f2937', flexShrink: 0 }}>
+            <div style={{ borderTop: '1px solid var(--border)', flexShrink: 0 }}>
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -345,14 +345,14 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                 fontWeight: 700,
                 letterSpacing: '0.04em',
                 textTransform: 'uppercase',
-                color: '#6b7280',
+                color: 'var(--text-muted)',
                 cursor: 'pointer',
               }}>
                 <span style={{ fontSize: '10px' }}>›</span>
                 <span>OUTLINE</span>
               </div>
             </div>
-            <div style={{ borderTop: '1px solid #1f2937', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ borderTop: '1px solid var(--border)', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
               <div
                 onClick={() => setTimelineExpanded(!timelineExpanded)}
                 style={{
@@ -364,7 +364,7 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                   fontWeight: 700,
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  color: timelineExpanded ? '#3b82f6' : '#6b7280',
+                  color: timelineExpanded ? 'var(--accent)' : 'var(--text-muted)',
                   cursor: 'pointer',
                 }}
               >
@@ -372,7 +372,7 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                 <span>AI TIMELINE</span>
               </div>
               {timelineExpanded && (
-                <div style={{ borderTop: '1px solid #1f2937', background: '#0d1117', overflowY: 'auto', maxHeight: '250px' }}>
+                <div style={{ borderTop: '1px solid var(--border)', background: 'var(--bg-base)', overflowY: 'auto', maxHeight: '250px' }}>
                   <AiTimelinePanel />
                 </div>
               )}
@@ -388,7 +388,7 @@ export function Sidebar({ collapsed, activeTab }: Props) {
               alignItems: 'center',
               justifyContent: 'space-between',
               fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
-              textTransform: 'uppercase', color: '#c9d1d9', marginBottom: '10px',
+              textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: '10px',
               flexShrink: 0,
             }}>
               <span>Search Workspace</span>
@@ -398,7 +398,7 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: isSemantic ? '#06b6d4' : '#4b5563',
+                  color: isSemantic ? 'var(--accent)' : 'var(--text-muted)',
                   cursor: 'pointer',
                   padding: '2px',
                   display: 'flex',
@@ -421,8 +421,8 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
-                    width: '100%', background: '#0d1117', border: '1px solid #1f2937',
-                    borderRadius: '5px', color: '#e2e8f0', fontSize: '13px',
+                    width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)',
+                    borderRadius: '5px', color: 'var(--text-primary)', fontSize: '13px',
                     padding: '6px 28px 6px 10px', outline: 'none', boxSizing: 'border-box',
                   }}
                 />
@@ -434,7 +434,7 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                     right: '6px',
                     background: 'none',
                     border: 'none',
-                    color: '#6b7280',
+                    color: 'var(--text-muted)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -449,8 +449,8 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                 value={replaceQuery}
                 onChange={(e) => setReplaceQuery(e.target.value)}
                 style={{
-                  width: '100%', background: '#0d1117', border: '1px solid #1f2937',
-                  borderRadius: '5px', color: '#e2e8f0', fontSize: '13px',
+                  width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)',
+                  borderRadius: '5px', color: 'var(--text-primary)', fontSize: '13px',
                   padding: '5px 10px', outline: 'none', boxSizing: 'border-box',
                 }}
               />
@@ -459,7 +459,7 @@ export function Sidebar({ collapsed, activeTab }: Props) {
             {/* Results listing */}
             <div style={{ flex: 1, overflowY: 'auto', marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', paddingBottom: '12px' }}>
               {searchLoading ? (
-                <div style={{ color: '#4b5563', fontSize: '11px', fontStyle: 'italic' }}>
+                <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontStyle: 'italic' }}>
                   Scanning index layers...
                 </div>
               ) : searchResults.length > 0 ? (
@@ -470,29 +470,29 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                     style={{
                       padding: '8px',
                       borderRadius: '6px',
-                      background: 'rgba(255,255,255,0.01)',
-                      border: '1px solid #1f2937',
+                      background: 'var(--bg-active)',
+                      border: '1px solid var(--border)',
                       cursor: 'pointer',
                       fontSize: '11px',
-                      color: '#e2e8f0',
+                      color: 'var(--text-secondary)',
                       transition: 'border-color 100ms',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#3b82f6'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#1f2937'; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 600, color: '#60a5fa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '4px' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--accent)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '4px' }}>
                         {res.title}
                       </span>
                       {res.score !== undefined && (
-                        <span style={{ fontSize: '8px', color: '#10b981', fontWeight: 'bold', flexShrink: 0 }}>
+                        <span style={{ fontSize: '8px', color: 'var(--green)', fontWeight: 'bold', flexShrink: 0 }}>
                           {Math.round(res.score * 100)}% Match
                         </span>
                       )}
                     </div>
                     <p style={{
                       fontSize: '10px',
-                      color: '#6e7681',
+                      color: 'var(--text-muted)',
                       fontFamily: 'monospace',
                       marginTop: '4px',
                       margin: '4px 0 0',
@@ -506,11 +506,11 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                   </div>
                 ))
               ) : searchQuery ? (
-                <div style={{ color: '#4b5563', fontSize: '11px', fontStyle: 'italic' }}>
+                <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontStyle: 'italic' }}>
                   No matching workspace snippets found.
                 </div>
               ) : (
-                <div style={{ color: '#4b5563', fontSize: '11px', fontStyle: 'italic' }}>
+                <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontStyle: 'italic' }}>
                   Press Enter to perform {isSemantic ? 'semantic AI vector' : 'local file pattern'} search.
                 </div>
               )}
@@ -523,7 +523,7 @@ export function Sidebar({ collapsed, activeTab }: Props) {
           <div style={{ padding: '10px 0 0', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
             <div style={{
               fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
-              textTransform: 'uppercase', color: '#c9d1d9', padding: '0 14px 10px',
+              textTransform: 'uppercase', color: 'var(--text-primary)', padding: '0 14px 10px',
               flexShrink: 0,
             }}>
               Source Control
@@ -531,12 +531,12 @@ export function Sidebar({ collapsed, activeTab }: Props) {
             
             <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflowY: 'auto' }}>
               <div style={{
-                background: '#0d1117', border: '1px solid #1f2937', borderRadius: '6px',
-                padding: '7px 10px', fontSize: '12px', color: '#9ca3af',
+                background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: '6px',
+                padding: '7px 10px', fontSize: '12px', color: 'var(--text-secondary)',
                 display: 'flex', alignItems: 'center', gap: '6px',
                 flexShrink: 0,
               }}>
-                <GitBranch size={13} style={{ color: '#06b6d4' }} />
+                <GitBranch size={13} style={{ color: 'var(--accent)' }} />
                 <span>workspace changes</span>
               </div>
 
@@ -550,8 +550,8 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                     rows={2}
                     disabled={gitLoading || aiGeneratingMsg}
                     style={{
-                      width: '100%', background: '#0d1117', border: '1px solid #1f2937',
-                      borderRadius: '5px', color: '#e2e8f0', fontSize: '12px',
+                      width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)',
+                      borderRadius: '5px', color: 'var(--text-primary)', fontSize: '12px',
                       padding: '6px 28px 6px 8px', outline: 'none', boxSizing: 'border-box',
                       resize: 'none', fontFamily: 'inherit',
                     }}
@@ -567,7 +567,7 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                       bottom: '8px',
                       background: 'none',
                       border: 'none',
-                      color: aiGeneratingMsg ? '#06b6d4' : '#6b7280',
+                      color: aiGeneratingMsg ? 'var(--accent)' : 'var(--text-muted)',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -581,8 +581,8 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                   type="submit"
                   disabled={gitLoading || !commitMsg.trim()}
                   style={{
-                    background: (gitLoading || !commitMsg.trim()) ? '#1f2937' : '#06b6d4',
-                    color: '#ffffff',
+                    background: (gitLoading || !commitMsg.trim()) ? 'var(--bg-active)' : 'var(--accent)',
+                    color: (gitLoading || !commitMsg.trim()) ? 'var(--text-muted)' : '#ffffff',
                     border: 'none',
                     borderRadius: '5px',
                     padding: '6px 0',
@@ -609,7 +609,7 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em',
-                  textTransform: 'uppercase', color: '#6b7280', marginBottom: '6px',
+                  textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '6px',
                   flexShrink: 0,
                 }}>
                   <span>Changes ({changedFiles.length})</span>
@@ -617,7 +617,7 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                     onClick={fetchGitStatus}
                     disabled={gitLoading}
                     title="Refresh Working Status"
-                    style={{ background: 'none', border: 'none', color: '#4b5563', cursor: 'pointer' }}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
                   >
                     <RefreshCw size={11} className={gitLoading ? "animate-spin" : ""} />
                   </button>
@@ -631,10 +631,10 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                         onClick={() => openFile(file.path)}
                         style={{
                           display: 'flex', alignItems: 'center', justifySelf: 'stretch', gap: '8px',
-                          padding: '4px 6px', fontSize: '12px', color: '#9ca3af',
+                          padding: '4px 6px', fontSize: '12px', color: 'var(--text-secondary)',
                           cursor: 'pointer', borderRadius: '4px',
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-active)'; }}
                         onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
                       >
                         <span style={{
@@ -650,13 +650,13 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file.path}>
                           {file.path.split('/').pop()}
                         </span>
-                        <span style={{ fontSize: '9px', color: '#4b5563', marginLeft: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px' }}>
+                        <span style={{ fontSize: '9px', color: 'var(--text-muted)', marginLeft: 'auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px' }}>
                           {file.path.substring(0, file.path.lastIndexOf('/'))}
                         </span>
                       </div>
                     ))
                   ) : (
-                    <div style={{ color: '#4b5563', fontSize: '11px', fontStyle: 'italic', padding: '4px' }}>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontStyle: 'italic', padding: '4px' }}>
                       Working tree clean. No uncommitted modifications.
                     </div>
                   )}
@@ -698,19 +698,19 @@ export function Sidebar({ collapsed, activeTab }: Props) {
           <div style={{ padding: '10px 12px 0' }}>
             <div style={{
               fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
-              textTransform: 'uppercase', color: '#c9d1d9', marginBottom: '10px',
+              textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: '10px',
             }}>
               Extensions
             </div>
             <input
               placeholder="Search Extensions in Marketplace"
               style={{
-                width: '100%', background: '#0d1117', border: '1px solid #1f2937',
-                borderRadius: '5px', color: '#e2e8f0', fontSize: '12.5px',
+                width: '100%', background: 'var(--bg-base)', border: '1px solid var(--border)',
+                borderRadius: '5px', color: 'var(--text-primary)', fontSize: '12.5px',
                 padding: '5px 10px', outline: 'none', boxSizing: 'border-box', marginBottom: '14px',
               }}
             />
-            <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#6b7280', marginBottom: '6px' }}>
+            <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '6px' }}>
               Installed
             </div>
             {['Tailwind CSS IntelliSense', 'ESLint', 'Prettier', 'GitLens', 'Error Lens'].map((ext) => (
@@ -718,8 +718,8 @@ export function Sidebar({ collapsed, activeTab }: Props) {
                 display: 'flex', alignItems: 'center', gap: '8px',
                 padding: '5px 6px', cursor: 'pointer', borderRadius: '4px',
               }}>
-                <Package size={13} color="#6b7280" />
-                <span style={{ fontSize: '12.5px', color: '#9ca3af' }}>{ext}</span>
+                <Package size={13} color="var(--text-muted)" />
+                <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>{ext}</span>
               </div>
             ))}
           </div>
@@ -730,7 +730,7 @@ export function Sidebar({ collapsed, activeTab }: Props) {
           <div style={{ height: '100%', overflow: 'hidden' }}>
             <div style={{
               fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em',
-              textTransform: 'uppercase', color: '#c9d1d9', padding: '10px 14px 8px',
+              textTransform: 'uppercase', color: 'var(--text-primary)', padding: '10px 14px 8px',
             }}>
               AI Team
             </div>

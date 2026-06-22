@@ -6,6 +6,7 @@ import ChatInterface from './pages/ChatInterface';
 import Build from './pages/Build';
 import Ide from './pages/Ide';
 import Login from './pages/Login';
+import Dashboard from '@/pages/Dashboard'; // Developer cockpit welcome dashboard
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import { useAuthStore } from './auth/authStore';
 
@@ -24,6 +25,7 @@ const App: React.FC = () => {
         {/* IDE is the primary view — no Layout wrapper (full screen) */}
         <Route path="/ide"  element={<ProtectedRoute><Ide /></ProtectedRoute>} />
         <Route path="/demo" element={<ProtectedRoute><Ide /></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
 
         {/* Other pages use the layout wrapper */}
         <Route path="/" element={<Layout><Home /></Layout>} />

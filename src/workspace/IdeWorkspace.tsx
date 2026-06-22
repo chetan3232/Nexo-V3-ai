@@ -20,7 +20,6 @@ import { writeWorkspaceFile } from '@/services/fileSystemClient';
 import { AISpotlight } from '@/editor/components/AISpotlight';
 import { ShortcutsModal } from '@/editor/components/ShortcutsModal';
 import { CloudProjectsModal } from '@/cloud/CloudProjectsModal';
-import { FloatingAIWidget } from '@/editor/components/FloatingAIWidget';
 import { ShieldAlert } from 'lucide-react';
 import { useAgentStore } from '@/store/useAgentStore';
 import { AiDiffApprovalModal } from '@/editor/components/AiDiffApprovalModal';
@@ -533,9 +532,9 @@ export function IdeWorkspace() {
       height: '100vh',
       width: '100vw',
       overflow: 'hidden',
-      background: '#0d1117',
-      color: '#c9d1d9',
-      fontFamily: "'Inter', sans-serif",
+      background: 'var(--bg-base)',
+      color: 'var(--text-primary)',
+      fontFamily: "var(--font-ui)",
     }}>
       {/* ── Title bar ── */}
       <TitleBar
@@ -656,7 +655,6 @@ export function IdeWorkspace() {
       <AISpotlight isOpen={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
       <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <CloudProjectsModal isOpen={cloudOpen} onClose={() => setCloudOpen(false)} />
-      <FloatingAIWidget />
 
       {/* ── Agent Diff Write Approval Modal ── */}
       <AiDiffApprovalModal

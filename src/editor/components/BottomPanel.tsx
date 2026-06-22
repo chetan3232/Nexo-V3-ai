@@ -215,8 +215,8 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
   return (
     <section style={{
       height: '100%',
-      background: '#0d1117',
-      borderTop: '1px solid #1f2937',
+      background: 'var(--bg-base)',
+      borderTop: '1px solid var(--border)',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -225,8 +225,8 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        background: '#111827',
-        borderBottom: '1px solid #1f2937',
+        background: 'var(--bg-sidebar)',
+        borderBottom: '1px solid var(--border)',
         flexShrink: 0,
         height: '35px',
       }}>
@@ -242,15 +242,16 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  borderBottom: isActive ? '1px solid #3b82f6' : '1px solid transparent',
-                  color: isActive ? '#e2e8f0' : '#6b7280',
-                  fontSize: '11.5px',
-                  fontWeight: 500,
+                  borderBottom: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+                  color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  fontSize: '11px',
+                  fontWeight: 600,
                   padding: '0 14px',
                   cursor: 'pointer',
-                  letterSpacing: '0.02em',
+                  letterSpacing: '0.04em',
                   transition: 'color 120ms, border-color 120ms',
                   whiteSpace: 'nowrap',
+                  marginBottom: '-1px',
                 }}
               >
                 {tab.label}
@@ -268,12 +269,12 @@ export function BottomPanel({ collapsed, onToggle }: Props) {
                 value={activeId}
                 onChange={(e) => setActiveId(e.target.value)}
                 style={{
-                  background: '#1f2937',
-                  border: '1px solid #374151',
+                  background: 'var(--bg-input)',
+                  border: '1px solid var(--border)',
                   borderRadius: '4px',
                   padding: '2px 18px 2px 6px',
                   fontSize: '11.5px',
-                  color: '#e2e8f0',
+                  color: 'var(--text-primary)',
                   outline: 'none',
                   cursor: 'pointer',
                   fontFamily: "'JetBrains Mono', monospace",

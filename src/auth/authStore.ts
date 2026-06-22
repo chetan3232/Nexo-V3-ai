@@ -9,6 +9,12 @@ export interface UserProfile {
   displayName: string | null;
   photoURL: string | null;
   createdAt?: string;
+  onboardingComplete?: boolean;
+  aiProfile?: {
+    preferredStack: string;
+    experienceLevel: string;
+    interests: string[];
+  } | null;
 }
 
 export interface UserPreferences {
@@ -59,6 +65,9 @@ interface AuthState {
   // Session Restore
   restoreSession: () => void;
   clearSession: () => void;
+  
+  // Onboarding action
+  completeOnboarding: (workspaceName: string, aiProfile: { preferredStack: string; experienceLevel: string; interests: string[] }) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -77,6 +86,42 @@ export const useAuthStore = create<AuthState>()(
       setAuthError: (error) => set({ authError: error }),
       setRememberMe: (remember) => set({ rememberMe: remember }),
       setMockMode: (isMock) => set({ isMock }),
+
+      completeOnboarding: (workspaceName, aiProfile) => {
+        set((state) => {
+          if (!state.user) return state;
+
+          const updatedUser = {
+            ...state.user,
+            onboardingComplete: true,
+            aiProfile: aiProfile
+          };
+
+          // Update session cache
+          if (state.rememberMe) {
+            localStorage.setItem('nexo-session-user', JSON.stringify(updatedUser));
+          }
+
+          // Build a default workspace path name
+          const sanitizedName = workspaceName.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'MyWorkspace';
+          const defaultPath = `c:/NexoWorkspaces/${sanitizedName}`;
+
+          // Save workspace path locally in state and sync fileSystemStore
+          localStorage.setItem('nexo-last-workspace', defaultPath);
+          const recent = [defaultPath];
+          localStorage.setItem('nexo_recent_projects', JSON.stringify(recent));
+
+          setTimeout(() => {
+            // Trigger filesystem update path
+            useFileSystemStore.getState().openFolder(defaultPath).catch(() => {});
+          }, 100);
+
+          return {
+            user: updatedUser,
+            lastWorkspacePath: defaultPath
+          };
+        });
+      },
 
       updateLocalProfile: (name, photoURL) => set((state) => {
         if (!state.user) return state;

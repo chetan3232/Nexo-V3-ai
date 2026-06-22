@@ -51,8 +51,8 @@ export function EditorTabs({ onToggleSidebar }: Props) {
       style={{
         display: 'flex',
         alignItems: 'stretch',
-        background: '#111827',
-        borderBottom: '1px solid #1f2937',
+        background: 'var(--bg-sidebar)',
+        borderBottom: '1px solid var(--border)',
         height: '35px',
         overflow: 'hidden',
         flexShrink: 0,
@@ -80,9 +80,9 @@ export function EditorTabs({ onToggleSidebar }: Props) {
                 gap: '6px',
                 padding: '0 12px',
                 cursor: 'pointer',
-                borderRight: '1px solid #1f2937',
-                background: isActive ? '#0d1117' : '#111827',
-                color: isActive ? '#e2e8f0' : '#6b7280',
+                borderRight: '1px solid var(--border)',
+                background: isActive ? 'var(--bg-base)' : 'var(--bg-sidebar)',
+                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                 fontSize: '13px',
                 whiteSpace: 'nowrap',
                 minWidth: '100px',
@@ -96,8 +96,8 @@ export function EditorTabs({ onToggleSidebar }: Props) {
                 <span style={{
                   position: 'absolute',
                   top: 0, left: 0, right: 0,
-                  height: '1px',
-                  background: '#3b82f6',
+                  height: '2px',
+                  background: 'var(--accent)',
                 }} />
               )}
 
@@ -125,26 +125,26 @@ export function EditorTabs({ onToggleSidebar }: Props) {
                   height: '16px',
                   borderRadius: '3px',
                   flexShrink: 0,
-                  color: '#4b5563',
+                  color: 'var(--text-muted)',
                   cursor: 'pointer',
                   opacity: isActive || dirty ? 1 : 0,
                   transition: 'opacity 100ms, background 100ms, color 100ms',
                 }}
                 onMouseEnter={(e) => {
                   const el = e.currentTarget as HTMLSpanElement;
-                  el.style.background = '#374151';
-                  el.style.color = '#e2e8f0';
+                  el.style.background = 'var(--bg-hover)';
+                  el.style.color = 'var(--text-primary)';
                   el.style.opacity = '1';
                 }}
                 onMouseLeave={(e) => {
                   const el = e.currentTarget as HTMLSpanElement;
                   el.style.background = 'transparent';
-                  el.style.color = '#4b5563';
+                  el.style.color = 'var(--text-muted)';
                   if (!isActive && !dirty) el.style.opacity = '0';
                 }}
               >
                 {dirty
-                  ? <Circle size={8} fill="#e2e8f0" stroke="none" />
+                  ? <Circle size={8} fill="var(--text-primary)" stroke="none" />
                   : <X size={13} />
                 }
               </span>

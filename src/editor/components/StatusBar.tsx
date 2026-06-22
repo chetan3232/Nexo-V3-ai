@@ -21,12 +21,22 @@ function StatusItem({ children, onClick, title }: { children: React.ReactNode; o
         height: '100%',
         cursor: onClick ? 'pointer' : 'default',
         fontSize: '11.5px',
-        color: 'rgba(255,255,255,0.88)',
+        color: 'var(--text-secondary)',
         whiteSpace: 'nowrap',
-        transition: 'background 100ms',
+        transition: 'background 100ms, color 100ms',
       }}
-      onMouseEnter={(e) => { if (onClick) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.1)'; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+      onMouseEnter={(e) => {
+        if (onClick) {
+          (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-hover)';
+          (e.currentTarget as HTMLDivElement).style.color = 'var(--text-primary)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (onClick) {
+          (e.currentTarget as HTMLDivElement).style.background = 'transparent';
+          (e.currentTarget as HTMLDivElement).style.color = 'var(--text-secondary)';
+        }
+      }}
     >
       {children}
     </div>
@@ -34,7 +44,7 @@ function StatusItem({ children, onClick, title }: { children: React.ReactNode; o
 }
 
 function Divider() {
-  return <div style={{ width: '1px', height: '60%', background: 'rgba(255,255,255,0.2)', flexShrink: 0 }} />;
+  return <div style={{ width: '1px', height: '60%', background: 'var(--border)', flexShrink: 0 }} />;
 }
 
 export function StatusBar({ aiPanelOpen, sidebarOpen }: Props) {
@@ -62,14 +72,7 @@ export function StatusBar({ aiPanelOpen, sidebarOpen }: Props) {
     : 'Plain Text';
 
   return (
-    <footer style={{
-      height: '22px',
-      background: '#3b82f6',
-      display: 'flex',
-      alignItems: 'center',
-      flexShrink: 0,
-      overflow: 'hidden',
-    }}>
+    <footer className="status-bar">
       {/* Left side */}
       <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
         <StatusItem onClick={() => {}}>

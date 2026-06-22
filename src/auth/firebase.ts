@@ -11,11 +11,7 @@ const firebaseConfig = {
 };
 
 // Check if we have minimum requirements for Firebase config
-const hasFirebaseConfig = Boolean(
-  import.meta.env.VITE_FIREBASE_API_KEY &&
-  import.meta.env.VITE_FIREBASE_AUTH_DOMAIN &&
-  import.meta.env.VITE_FIREBASE_PROJECT_ID
-);
+const hasFirebaseConfig = false; // Forced to false for Electron popup testing
 
 let app;
 let auth: Auth | null = null;

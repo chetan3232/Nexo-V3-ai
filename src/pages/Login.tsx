@@ -16,7 +16,7 @@ const Login: React.FC = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      const redirectPath = (location.state as any)?.from?.pathname || '/ide';
+      const redirectPath = (location.state as any)?.from?.pathname || '/dashboard';
       navigate(redirectPath, { replace: true });
     }
   }, [isAuthenticated, navigate, location]);
@@ -29,9 +29,10 @@ const Login: React.FC = () => {
     setSubmitting(true);
     try {
       const loggedUser = await signInWithGoogle();
+      console.log("NAVIGATING TO DASHBOARD", loggedUser);
       if (loggedUser) {
         showToast(`Welcome back, ${loggedUser.displayName || 'Developer'}! Sign-in successful.`, 'success');
-        const redirectPath = (location.state as any)?.from?.pathname || '/ide';
+        const redirectPath = (location.state as any)?.from?.pathname || '/dashboard';
         navigate(redirectPath, { replace: true });
       }
     } catch (e) {

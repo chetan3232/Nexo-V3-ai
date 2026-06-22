@@ -1,10 +1,11 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './useAuth';
 import logoImage from '@/logo/image.png';
 
 export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isAuthLoading } = useAuth();
+  const { user, isAuthenticated, isAuthLoading } = useAuth();
+  const location = useLocation();
 
   if (isAuthLoading) {
     return (
@@ -75,7 +76,11 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  if (user && !user.onboardingComplete && location.pathname !== '/dashboard') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;

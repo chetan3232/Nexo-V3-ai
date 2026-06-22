@@ -1,7 +1,10 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Heart, Github, Cpu, Menu } from 'lucide-react';
+import { Heart, Github, Cpu, Menu, FolderOpen, Search, GitFork, Play, Settings } from 'lucide-react';
 import logoImage from '@/logo/image.png';
+import { ActivityBar } from './ActivityBar';
+import { SideBar } from './SideBar';
+import { StatusBar } from './StatusBar';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
@@ -43,7 +46,15 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         </header>
       )}
 
-      <main className={`flex-grow ${isIde ? 'pt-0 px-0' : 'pt-24 px-4'}`}>{children}</main>
+      <main className={`flex-grow flex ${isIde ? 'pt-0 px-0 h-screen overflow-hidden' : 'pt-24 px-4'}`}>
+        {isIde && <ActivityBar />}
+        {isIde && <SideBar />}
+        <div className="flex-1 overflow-auto">
+          {children}
+        </div>
+      </main>
+
+      {isIde && <StatusBar />}
 
       {!isIde && (
         <footer className="border-t border-stone-200 py-16 bg-white mt-12">

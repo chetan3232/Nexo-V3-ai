@@ -125,8 +125,8 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
     <header
       style={{
         height: '35px',
-        background: '#111827',
-        borderBottom: '1px solid #1f2937',
+        background: 'var(--bg-sidebar)',
+        borderBottom: '1px solid var(--border)',
         display: 'flex',
         alignItems: 'center',
         flexShrink: 0,
@@ -205,8 +205,8 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
               <button
                 style={{
                   ...menuBtnStyle,
-                  background: isOpen ? 'rgba(255,255,255,0.08)' : 'transparent',
-                  color: isOpen ? '#e2e8f0' : '#9ca3af',
+                  background: isOpen ? 'var(--bg-active)' : 'transparent',
+                  color: isOpen ? 'var(--text-primary)' : 'var(--text-secondary)',
                 }}
                 onClick={() => setActiveMenu(isOpen ? null : menu.trigger)}
                 onMouseEnter={() => {
@@ -230,9 +230,9 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
                       top: '35px',
                       left: 0,
                       width: '200px',
-                      background: 'rgba(17, 24, 39, 0.95)',
+                      background: 'rgba(7, 9, 14, 0.95)',
                       backdropFilter: 'blur(16px) saturate(140%)',
-                      border: '1px solid #1f2937',
+                      border: '1px solid var(--border)',
                       borderRadius: '6px',
                       boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
                       padding: '4px 0',
@@ -245,7 +245,7 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
                         return (
                           <div
                             key={idx}
-                            style={{ height: '1px', background: '#1f2937', margin: '4px 0' }}
+                            style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }}
                           />
                         );
                       }
@@ -263,7 +263,7 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
                             border: 'none',
                             outline: 'none',
                             padding: '6px 12px',
-                            color: '#c9d1d9',
+                            color: 'var(--text-secondary)',
                             fontSize: '12px',
                             textAlign: 'left',
                             cursor: 'pointer',
@@ -274,25 +274,25 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
                           }}
                           onMouseEnter={(e) => {
                             const btn = e.currentTarget as HTMLButtonElement;
-                            btn.style.background = '#1e3a8a';
-                            btn.style.color = '#ffffff';
+                            btn.style.background = 'var(--bg-hover)';
+                            btn.style.color = 'var(--text-primary)';
                           }}
                           onMouseLeave={(e) => {
                             const btn = e.currentTarget as HTMLButtonElement;
                             btn.style.background = 'transparent';
-                            btn.style.color = '#c9d1d9';
+                            btn.style.color = 'var(--text-secondary)';
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             {item.type === 'checkbox' ? (
                               <div style={{ width: '12px', height: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                {item.checked && <Check size={10} color="#3b82f6" strokeWidth={3} />}
+                                {item.checked && <Check size={10} color="var(--accent)" strokeWidth={3} />}
                               </div>
                             ) : null}
                             <span>{item.label}</span>
                           </div>
                           {item.shortcut && (
-                            <span style={{ fontSize: '10px', color: '#6b7280', fontFamily: "'JetBrains Mono', monospace" }}>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
                               {item.shortcut}
                             </span>
                           )}
@@ -320,33 +320,33 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
           onClick={onTogglePalette}
           style={{
             display: 'flex', alignItems: 'center', gap: '8px',
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid #1f2937',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid var(--border)',
             borderRadius: '6px',
             padding: '4px 12px',
-            color: '#6b7280',
-            fontSize: '12.5px',
+            color: 'var(--text-secondary)',
+            fontSize: '12px',
             cursor: 'pointer',
             width: '280px',
             transition: 'border-color 150ms, background 150ms',
           }}
           onMouseEnter={(e) => {
             const el = e.currentTarget as HTMLButtonElement;
-            el.style.borderColor = '#374151';
-            el.style.background = 'rgba(255,255,255,0.09)';
+            el.style.borderColor = 'var(--border-light)';
+            el.style.background = 'var(--bg-hover)';
           }}
           onMouseLeave={(e) => {
             const el = e.currentTarget as HTMLButtonElement;
-            el.style.borderColor = '#1f2937';
-            el.style.background = 'rgba(255,255,255,0.06)';
+            el.style.borderColor = 'var(--border)';
+            el.style.background = 'rgba(255,255,255,0.03)';
           }}
         >
           <Search size={13} />
           <span style={{ flex: 1, textAlign: 'left' }}>NEXO V3</span>
           <kbd style={{
-            background: '#1f2937', border: '1px solid #374151',
+            background: 'var(--bg-input)', border: '1px solid var(--border)',
             borderRadius: '3px', padding: '1px 5px',
-            fontSize: '10.5px', color: '#4b5563',
+            fontSize: '10.5px', color: 'var(--text-muted)',
             fontFamily: "'JetBrains Mono', monospace",
           }}>
             {isMac ? '⌘K' : 'Ctrl+K'}
@@ -373,10 +373,10 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
           title="Analyze and generate project documentation wikis"
           style={{
             display: 'flex', alignItems: 'center', gap: '5px',
-            background: 'rgba(139, 92, 246, 0.12)',
-            border: '1px solid rgba(139, 92, 246, 0.3)',
+            background: 'rgba(167, 139, 250, 0.08)',
+            border: '1px solid rgba(167, 139, 250, 0.2)',
             borderRadius: '5px', padding: '3px 8px',
-            color: '#a78bfa',
+            color: 'var(--purple)',
             fontSize: '12px', cursor: 'pointer',
             transition: 'all 150ms ease',
             marginRight: '4px',
@@ -393,10 +393,10 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
           title="Toggle AI Panel (Ctrl+Shift+A)"
           style={{
             display: 'flex', alignItems: 'center', gap: '5px',
-            background: aiPanelOpen ? 'rgba(59,130,246,0.15)' : 'transparent',
-            border: `1px solid ${aiPanelOpen ? 'rgba(59,130,246,0.5)' : 'transparent'}`,
+            background: aiPanelOpen ? 'var(--accent-dim)' : 'transparent',
+            border: `1px solid ${aiPanelOpen ? 'rgba(59, 130, 246, 0.25)' : 'transparent'}`,
             borderRadius: '5px', padding: '3px 8px',
-            color: aiPanelOpen ? '#60a5fa' : '#6b7280',
+            color: aiPanelOpen ? 'var(--accent)' : 'var(--text-muted)',
             fontSize: '12px', cursor: 'pointer',
             transition: 'all 150ms ease',
             marginRight: '4px',
@@ -420,7 +420,7 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
               title="Close"
               onClick={() => { if ((window as any).nexoDesktop) (window as any).nexoDesktop.closeWindow(); }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#c42b1c'; (e.currentTarget as HTMLButtonElement).style.color = 'white'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#6b7280'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}
             >
               <X size={14} />
             </button>
@@ -435,7 +435,7 @@ export function TitleBar({ onTogglePalette, onToggleAI, aiPanelOpen }: Props) {
 const menuBtnStyle: React.CSSProperties = {
   background: 'transparent',
   border: 'none',
-  color: '#9ca3af',
+  color: 'var(--text-secondary)',
   fontSize: '12.5px',
   padding: '0 7px',
   height: '35px',
@@ -450,7 +450,7 @@ const menuBtnStyle: React.CSSProperties = {
 const winCtrlBtn: React.CSSProperties = {
   background: 'transparent',
   border: 'none',
-  color: '#6b7280',
+  color: 'var(--text-muted)',
   width: '46px',
   height: '35px',
   cursor: 'pointer',

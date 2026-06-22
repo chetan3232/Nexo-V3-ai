@@ -51,6 +51,7 @@ export async function signInWithGoogle(): Promise<UserProfile> {
   try {
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(authInstance, provider);
+    console.log("LOGIN SUCCESS", result.user);
     const fbUser = result.user;
     
     const user: UserProfile = {
@@ -104,6 +105,7 @@ export function onAuthStateChanged(callback: (user: UserProfile | null) => void)
   }
 
   return authInstance.onAuthStateChanged((fbUser) => {
+    console.log("AUTH STATE:", fbUser);
     if (fbUser) {
       const user: UserProfile = {
         uid: fbUser.uid,

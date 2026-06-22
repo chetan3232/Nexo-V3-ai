@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>NEXO V3 | Startup Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#27313f",
+                        "on-background": "#dfe2eb",
+                        "on-primary-container": "#00285d",
+                        "surface-dim": "#10141a",
+                        "on-tertiary-fixed-variant": "#723600",
+                        "on-primary-fixed-variant": "#004395",
+                        "secondary": "#bdc7d9",
+                        "tertiary-fixed": "#ffdcc6",
+                        "primary-container": "#4d8eff",
+                        "surface": "#10141a",
+                        "on-surface-variant": "#c2c6d6",
+                        "inverse-on-surface": "#2d3137",
+                        "on-surface": "#dfe2eb",
+                        "surface-container-highest": "#31353c",
+                        "secondary-fixed-dim": "#bdc7d9",
+                        "surface-tint": "#adc6ff",
+                        "secondary-fixed": "#d9e3f6",
+                        "on-error": "#690005",
+                        "inverse-surface": "#dfe2eb",
+                        "surface-bright": "#353940",
+                        "surface-container": "#1c2026",
+                        "outline-variant": "#424754",
+                        "tertiary-container": "#df7412",
+                        "on-primary": "#002e6a",
+                        "inverse-primary": "#005ac2",
+                        "on-tertiary-container": "#461f00",
+                        "primary-fixed-dim": "#adc6ff",
+                        "primary": "#adc6ff",
+                        "surface-container-low": "#181c22",
+                        "on-primary-fixed": "#001a42",
+                        "background": "#10141a",
+                        "on-tertiary-fixed": "#311400",
+                        "on-secondary-container": "#afb9cb",
+                        "on-error-container": "#ffdad6",
+                        "surface-variant": "#31353c",
+                        "tertiary": "#ffb786",
+                        "error": "#ffb4ab",
+                        "secondary-container": "#404a59",
+                        "surface-container-high": "#262a31",
+                        "primary-fixed": "#d8e2ff",
+                        "tertiary-fixed-dim": "#ffb786",
+                        "error-container": "#93000a",
+                        "on-tertiary": "#502400",
+                        "outline": "#8c909f",
+                        "on-secondary-fixed": "#121c2a",
+                        "on-secondary-fixed-variant": "#3d4756",
+                        "surface-container-lowest": "#0a0e14"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-width": "260px",
+                        "panel-gap": "0px",
+                        "container-padding": "12px",
+                        "element-gap": "8px",
+                        "toolbar-height": "40px"
+                    },
+                    "fontFamily": {
+                        "code-sm": ["JetBrains Mono"],
+                        "label-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "code-md": ["JetBrains Mono"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "code-sm": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "headline-sm": ["18px", {"lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "code-md": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #0D1117;
+            color: #dfe2eb;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+            font-size: 1.25rem;
+        }
+        .border-iron { border-color: #424754; }
+        .bg-app-bg { background-color: #0D1117; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .hover-lift { transition: transform 0.2s ease, background-color 0.2s ease; }
+        .hover-lift:hover { transform: translateY(-1px); }
+    </style>
+</head>
+<body class="font-body-md text-body-md h-screen flex overflow-hidden">
+<!-- Sidebar Navigation (Mapped from SideNavBar JSON) -->
+<aside class="flex flex-col h-full bg-surface-container-low border-r border-outline-variant w-sidebar-width py-container-padding gap-element-gap">
+<div class="px-4 mb-4 flex items-center gap-3">
+<div class="w-6 h-6 bg-primary rounded-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary text-xs" style="font-size: 14px;">terminal</span>
+</div>
+<span class="font-headline-sm text-headline-sm font-bold text-primary">NEXO V3</span>
+</div>
+<nav class="flex-1 flex flex-col gap-1">
+<!-- Explorer - Active State Map -->
+<button class="flex items-center gap-3 px-4 py-2 text-primary border-l-2 border-primary bg-primary-container/10 transition-all duration-200 ease-in-out font-label-md text-label-md">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span>
+<span>Explorer</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all duration-200 ease-in-out font-label-md text-label-md">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+<span>Search</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all duration-200 ease-in-out font-label-md text-label-md">
+<span class="material-symbols-outlined" data-icon="grid_view">grid_view</span>
+<span>Source Control</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all duration-200 ease-in-out font-label-md text-label-md">
+<span class="material-symbols-outlined" data-icon="smart_toy">smart_toy</span>
+<span>AI Chat</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all duration-200 ease-in-out font-label-md text-label-md">
+<span class="material-symbols-outlined" data-icon="robot_2">robot_2</span>
+<span>Agents</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all duration-200 ease-in-out font-label-md text-label-md">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span>Project Brain</span>
+</button>
+</nav>
+<div class="mt-auto flex flex-col gap-1">
+<button class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all duration-200 ease-in-out font-label-md text-label-md">
+<span class="material-symbols-outlined" data-icon="extension">extension</span>
+<span>Extensions</span>
+</button>
+<button class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all duration-200 ease-in-out font-label-md text-label-md">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Settings</span>
+</button>
+<div class="px-4 py-4 mt-2 border-t border-outline-variant flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a software engineer in a high-tech studio with soft neon blue backlighting, 8k resolution, minimalist style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvMsvrEaWCEA7K_apKmN9Yib35czcCuaEgsweRdA9M1nAt2mC4RXVLwfPe9aldnqafjdLxb2dZggS5TqKWezF5tg6zblQW0H_xIRss8BfRLNASLUzOZmr-1eZsRmgRLqLzUeJjL_eX55CHkqY42nDqoeSiuSQff889frjeV9UK2vIJNlgTztInLMv7VnTTTMuzJ4uO6dzTd8zsctnDwGEv021t3y1DfZe7Iwg5LMr0D-YBfE7f4nBh0sDl9OLwu1SbcysdyHfcmi39"/>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">Developer</span>
+<span class="text-[10px] text-on-surface-variant uppercase tracking-wider">Premium Plan</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="flex-1 flex flex-col overflow-hidden bg-app-bg">
+<!-- Top Toolbar (Mapped from TopNavBar JSON) -->
+<header class="flex items-center w-full px-container-padding gap-element-gap bg-surface border-b border-outline-variant h-toolbar-height shrink-0">
+<div class="flex gap-4 items-center">
+<div class="flex gap-3">
+<span class="text-on-surface-variant font-body-sm text-body-sm hover:text-on-surface cursor-default">File</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm hover:text-on-surface cursor-default">Edit</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm hover:text-on-surface cursor-default">View</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm hover:text-on-surface cursor-default">Go</span>
+<span class="text-on-surface-variant font-body-sm text-body-sm hover:text-on-surface cursor-default">Run</span>
+</div>
+</div>
+<div class="flex-1 flex justify-center">
+<div class="bg-surface-container px-3 py-1 rounded border border-outline-variant text-[11px] text-on-surface-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px]">search</span>
+<span>Search files, commands, and templates...</span>
+<span class="ml-4 opacity-50">Ctrl+P</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant hover:text-on-surface cursor-pointer" data-icon="settings">settings</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-on-surface cursor-pointer" data-icon="account_circle">account_circle</span>
+</div>
+</header>
+<!-- Scrollable Content -->
+<section class="flex-1 overflow-y-auto no-scrollbar p-8">
+<div class="max-w-6xl mx-auto space-y-12">
+<!-- Hero Section -->
+<div>
+<h1 class="font-headline-sm text-4xl font-extrabold tracking-tight text-on-surface mb-2">Welcome back, Developer</h1>
+<p class="text-on-surface-variant font-body-md">Pick up where you left off or start something new with AI assistance.</p>
+</div>
+<!-- Quick Actions Grid -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+<!-- Large Card: Continue Last Project -->
+<div class="md:col-span-2 group relative overflow-hidden bg-surface-container rounded-lg border border-outline-variant p-6 flex flex-col justify-between hover:border-primary/50 transition-colors cursor-pointer">
+<div class="flex justify-between items-start">
+<div>
+<span class="text-[10px] font-bold uppercase tracking-widest text-primary mb-2 block">Recent Session</span>
+<h3 class="font-headline-sm text-xl text-on-surface">nexo-dashboard-v3</h3>
+<p class="text-on-surface-variant text-body-sm mt-1">~/projects/nexo/web-ui</p>
+</div>
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">rocket_launch</span>
+</div>
+<div class="mt-8 flex items-center justify-between">
+<span class="text-body-sm text-on-surface-variant">Last active 12m ago</span>
+<button class="bg-primary text-on-primary px-4 py-1.5 rounded font-label-md text-label-md flex items-center gap-2">
+                                Continue <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Small Action Cards -->
+<div class="bg-surface-container rounded-lg border border-outline-variant p-5 flex flex-col justify-center items-center text-center gap-3 hover:bg-surface-container-high transition-colors cursor-pointer border-dashed">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface">add</span>
+</div>
+<span class="font-label-md text-on-surface">New Project</span>
+</div>
+<div class="bg-surface-container rounded-lg border border-outline-variant p-5 flex flex-col justify-center items-center text-center gap-3 hover:bg-surface-container-high transition-colors cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface">folder_open</span>
+</div>
+<span class="font-label-md text-on-surface">Import Folder</span>
+</div>
+<div class="bg-surface-container rounded-lg border border-outline-variant p-5 flex flex-col justify-center items-center text-center gap-3 hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface group-hover:rotate-12 transition-transform">cloud_download</span>
+</div>
+<span class="font-label-md text-on-surface">Clone Repository</span>
+</div>
+</div>
+<!-- Main Content Split -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+<!-- Recent Projects (List) -->
+<div class="lg:col-span-2 space-y-6">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-lg text-on-surface">Recent Projects</h2>
+<button class="text-primary font-label-md text-label-md hover:underline">View All</button>
+</div>
+<div class="space-y-px rounded-lg border border-outline-variant overflow-hidden bg-outline-variant/20">
+<!-- Project Item -->
+<div class="flex items-center justify-between p-4 bg-surface hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 flex items-center justify-center bg-surface-container-highest rounded border border-outline-variant">
+<span class="material-symbols-outlined text-primary text-lg">javascript</span>
+</div>
+<div>
+<div class="font-label-md text-on-surface">quantum-engine-core</div>
+<div class="text-[11px] text-on-surface-variant font-code-sm">src/lib/runtime.ts</div>
+</div>
+</div>
+<div class="flex items-center gap-8">
+<span class="text-[11px] text-on-surface-variant uppercase tracking-tighter">Modified 2h ago</span>
+<span class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100">more_vert</span>
+</div>
+</div>
+<!-- Project Item -->
+<div class="flex items-center justify-between p-4 bg-surface hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 flex items-center justify-center bg-surface-container-highest rounded border border-outline-variant">
+<span class="material-symbols-outlined text-tertiary text-lg">description</span>
+</div>
+<div>
+<div class="font-label-md text-on-surface">docs-portal-v2</div>
+<div class="text-[11px] text-on-surface-variant font-code-sm">content/api-ref.md</div>
+</div>
+</div>
+<div class="flex items-center gap-8">
+<span class="text-[11px] text-on-surface-variant uppercase tracking-tighter">Modified Yesterday</span>
+<span class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100">more_vert</span>
+</div>
+</div>
+<!-- Project Item -->
+<div class="flex items-center justify-between p-4 bg-surface hover:bg-surface-container-high transition-colors cursor-pointer group">
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 flex items-center justify-center bg-surface-container-highest rounded border border-outline-variant">
+<span class="material-symbols-outlined text-secondary text-lg">settings_ethernet</span>
+</div>
+<div>
+<div class="font-label-md text-on-surface">ai-agent-orchestrator</div>
+<div class="text-[11px] text-on-surface-variant font-code-sm">main.py</div>
+</div>
+</div>
+<div class="flex items-center gap-8">
+<span class="text-[11px] text-on-surface-variant uppercase tracking-tighter">Modified 3d ago</span>
+<span class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100">more_vert</span>
+</div>
+</div>
+</div>
+</div>
+<!-- AI Templates (Side Cards) -->
+<div class="space-y-6">
+<div class="flex items-center justify-between">
+<h2 class="font-headline-sm text-lg text-on-surface">AI Templates</h2>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer">info</span>
+</div>
+<div class="space-y-3">
+<!-- Template Card -->
+<div class="p-4 bg-surface-container border border-outline-variant rounded-lg hover:border-primary/30 transition-all cursor-pointer group relative overflow-hidden">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+<span class="material-symbols-outlined text-primary">auto_awesome</span>
+</div>
+<div class="flex-1">
+<div class="font-label-md text-on-surface">Next.js + Tailwind</div>
+<p class="text-[11px] text-on-surface-variant mt-1">Full-stack with Auth &amp; DB pre-configured.</p>
+</div>
+</div>
+</div>
+<!-- Template Card -->
+<div class="p-4 bg-surface-container border border-outline-variant rounded-lg hover:border-tertiary/30 transition-all cursor-pointer group">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
+<span class="material-symbols-outlined text-tertiary">api</span>
+</div>
+<div class="flex-1">
+<div class="font-label-md text-on-surface">Python Microservice</div>
+<p class="text-[11px] text-on-surface-variant mt-1">FastAPI with Redis caching and Docker.</p>
+</div>
+</div>
+</div>
+<!-- Template Card -->
+<div class="p-4 bg-surface-container border border-outline-variant rounded-lg hover:border-on-surface/30 transition-all cursor-pointer group">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded bg-on-surface/5 flex items-center justify-center border border-on-surface/10">
+<span class="material-symbols-outlined text-on-surface-variant">terminal</span>
+</div>
+<div class="flex-1">
+<div class="font-label-md text-on-surface">Rust CLI Tool</div>
+<p class="text-[11px] text-on-surface-variant mt-1">Optimized binary scaffolding with Clap.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 rounded-lg bg-primary-container/5 border border-primary/20 flex flex-col gap-3">
+<span class="text-[10px] font-bold uppercase tracking-widest text-primary">Pro Tip</span>
+<p class="text-[12px] text-on-surface leading-relaxed">Type <code class="bg-surface-container-highest px-1 rounded text-primary">nexo-ai gen [idea]</code> in any terminal to bootstrap instantly.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Status Bar -->
+<footer class="h-6 bg-primary border-t border-outline-variant flex items-center justify-between px-3 text-[10px] text-on-primary select-none shrink-0">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">sync</span>
+<span>Ready</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">fork_right</span>
+<span>main</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span>UTF-8</span>
+<span>Space: 4</span>
+<span>v3.0.4-stable</span>
+</div>
+</footer>
+</main>
+<script>
+        // Micro-interaction: Sidebar Tab Switching
+        const sidebarButtons = document.querySelectorAll('aside nav button');
+        sidebarButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                sidebarButtons.forEach(b => {
+                    b.classList.remove('text-primary', 'border-l-2', 'border-primary', 'bg-primary-container/10');
+                    b.classList.add('text-on-surface-variant');
+                });
+                btn.classList.add('text-primary', 'border-l-2', 'border-primary', 'bg-primary-container/10');
+                btn.classList.remove('text-on-surface-variant');
+            });
+        });
+
+        // Micro-interaction: Recent Project Hover Effects
+        const projectItems = document.querySelectorAll('.group');
+        projectItems.forEach(item => {
+            item.addEventListener('mouseenter', () => {
+                item.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+            });
+            item.addEventListener('mouseleave', () => {
+                item.style.backgroundColor = '';
+            });
+        });
+    </script>
+</body></html>

@@ -1,5 +1,70 @@
 @import "tailwindcss";
 
+@theme {
+  --color-on-secondary: #27313f;
+  --color-on-background: #dfe2eb;
+  --color-on-primary-container: #00285d;
+  --color-surface-dim: #10141a;
+  --color-on-tertiary-fixed-variant: #723600;
+  --color-on-primary-fixed-variant: #004395;
+  --color-secondary: #bdc7d9;
+  --color-tertiary-fixed: #ffdcc6;
+  --color-primary-container: #4d8eff;
+  --color-surface: #10141a;
+  --color-on-surface-variant: #c2c6d6;
+  --color-inverse-on-surface: #2d3137;
+  --color-on-surface: #dfe2eb;
+  --color-surface-container-highest: #31353c;
+  --color-secondary-fixed-dim: #bdc7d9;
+  --color-surface-tint: #adc6ff;
+  --color-secondary-fixed: #d9e3f6;
+  --color-on-error: #690005;
+  --color-inverse-surface: #dfe2eb;
+  --color-surface-bright: #353940;
+  --color-surface-container: #1c2026;
+  --color-outline-variant: #424754;
+  --color-tertiary-container: #df7412;
+  --color-on-primary: #002e6a;
+  --color-inverse-primary: #005ac2;
+  --color-on-tertiary-container: #461f00;
+  --color-primary-fixed-dim: #adc6ff;
+  --color-primary: #adc6ff;
+  --color-surface-container-low: #181c22;
+  --color-on-primary-fixed: #001a42;
+  --color-background: #10141a;
+  --color-on-tertiary-fixed: #311400;
+  --color-on-secondary-container: #afb9cb;
+  --color-on-error-container: #ffdad6;
+  --color-surface-variant: #31353c;
+  --color-tertiary: #ffb786;
+  --color-error: #ffb4ab;
+  --color-secondary-container: #404a59;
+  --color-surface-container-high: #262a31;
+  --color-primary-fixed: #d8e2ff;
+  --color-tertiary-fixed-dim: #ffb786;
+  --color-error-container: #93000a;
+  --color-on-tertiary: #502400;
+  --color-outline: #8c909f;
+  --color-on-secondary-fixed: #121c2a;
+  --color-on-secondary-fixed-variant: #3d4756;
+  --color-surface-container-lowest: #0a0e14;
+
+  /* spacing config */
+  --spacing-sidebar-width: 260px;
+  --spacing-panel-gap: 0px;
+  --spacing-container-padding: 12px;
+  --spacing-element-gap: 8px;
+  --spacing-toolbar-height: 40px;
+
+  /* font-family config */
+  --font-code-sm: "JetBrains Mono";
+  --font-label-md: "Inter";
+  --font-body-sm: "Inter";
+  --font-headline-sm: "Inter";
+  --font-code-md: "JetBrains Mono";
+  --font-body-md: "Inter";
+}
+
 /* ──────────────────────────────────────────────
    NEXO IDE – Design System
    Theme: VS Code + Cursor + Windsurf inspired
@@ -9,37 +74,37 @@
 :root {
   color-scheme: dark;
 
-  /* Core palette */
-  --bg-base:       #0d1117;
-  --bg-sidebar:    #111827;
-  --bg-panel:      #0d1117;
-  --bg-header:     #0d1117;
-  --bg-input:      #1a2233;
-  --bg-hover:      #1f2d40;
-  --bg-active:     #1d2b3a;
-  --bg-selected:   #1e3a5f;
+  /* Core palette - Stitch NEXO V3 Dark Theme */
+  --bg-base:       #10141a;
+  --bg-sidebar:    #181c22;
+  --bg-panel:      #10141a;
+  --bg-header:     #10141a;
+  --bg-input:      #181c22;
+  --bg-hover:      rgba(255, 255, 255, 0.02);
+  --bg-active:     rgba(255, 255, 255, 0.04);
+  --bg-selected:   rgba(173, 198, 255, 0.08);
 
-  /* Borders */
-  --border:        #1f2937;
-  --border-light:  #263346;
-  --border-focus:  #3b82f6;
+  /* Borders - thin and clean */
+  --border:        #424754;
+  --border-light:  #31353c;
+  --border-focus:  #adc6ff;
 
   /* Accent */
-  --accent:        #3b82f6;
-  --accent-dim:    rgba(59, 130, 246, 0.15);
-  --accent-glow:   rgba(59, 130, 246, 0.08);
+  --accent:        #adc6ff;
+  --accent-dim:    rgba(173, 198, 255, 0.12);
+  --accent-glow:   rgba(173, 198, 255, 0.06);
 
   /* Text */
-  --text-primary:  #e2e8f0;
-  --text-secondary:#8b9ab2;
-  --text-muted:    #4b5e78;
-  --text-accent:   #3b82f6;
+  --text-primary:  #dfe2eb;
+  --text-secondary:#c2c6d6;
+  --text-muted:    #8c909f;
+  --text-accent:   #adc6ff;
 
   /* Status colors */
-  --green:   #22c55e;
-  --amber:   #f59e0b;
-  --red:     #ef4444;
-  --purple:  #a78bfa;
+  --green:   #10b981;
+  --amber:   #ffb786;
+  --red:     #ffb4ab;
+  --purple:  #adc6ff;
 
   /* Fonts */
   --font-ui:   'Inter', system-ui, sans-serif;
@@ -319,13 +384,14 @@ code, pre, kbd, .font-mono {
 /* ── Status bar ─────────────────────────────── */
 .status-bar {
   height: var(--status-bar-h);
-  background: var(--accent);
+  background: var(--bg-sidebar);
+  border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
   padding: 0 10px;
   gap: 16px;
   font-size: 11px;
-  color: rgba(255,255,255,0.9);
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 .status-bar .status-item {
@@ -333,10 +399,9 @@ code, pre, kbd, .font-mono {
   align-items: center;
   gap: 4px;
   cursor: default;
-  opacity: 0.85;
-  transition: opacity 120ms;
+  transition: opacity 120ms, color 120ms;
 }
-.status-bar .status-item:hover { opacity: 1; }
+.status-bar .status-item:hover { color: var(--text-primary); }
 
 /* ── Bottom panel tabs ──────────────────────── */
 .panel-tab {

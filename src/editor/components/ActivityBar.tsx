@@ -38,8 +38,8 @@ export function ActivityBar({ activeIndex, onSelect, onToggleProfile, onToggleSe
     <aside
       style={{
         width: '48px',
-        background: '#111827',
-        borderRight: '1px solid #1f2937',
+        background: 'var(--bg-sidebar)',
+        borderRight: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -69,14 +69,14 @@ export function ActivityBar({ activeIndex, onSelect, onToggleProfile, onToggleSe
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
-                color: isActive ? '#e2e8f0' : '#6b7280',
+                color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
                 transition: 'color 120ms ease',
               }}
               onMouseEnter={(e) => {
-                if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af';
+                if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)';
               }}
               onMouseLeave={(e) => {
-                if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = '#6b7280';
+                if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)';
               }}
             >
               {/* Active left border */}
@@ -90,7 +90,7 @@ export function ActivityBar({ activeIndex, onSelect, onToggleProfile, onToggleSe
                     transform: 'translateY(-50%)',
                     width: '2px',
                     height: '24px',
-                    background: '#e2e8f0',
+                    background: 'var(--accent)',
                     borderRadius: '0 2px 2px 0',
                   }}
                 />
@@ -121,11 +121,11 @@ export function ActivityBar({ activeIndex, onSelect, onToggleProfile, onToggleSe
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
-                color: '#6b7280',
+                color: 'var(--text-muted)',
                 transition: 'color 120ms ease',
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#9ca3af'; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#6b7280'; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)'; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}
             >
               <Icon size={22} strokeWidth={1.5} />
             </button>
